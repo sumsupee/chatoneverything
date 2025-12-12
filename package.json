@@ -1,10 +1,13 @@
 {
-  "name": "linux-overlay",
+  "name": "livechat-overlay",
   "version": "1.0.0",
   "description": "A transparent overlay for Linux with click-through support and global hotkeys",
   "main": "main.js",
   "scripts": {
-    "start": "electron . --enable-transparent-visuals --disable-gpu --no-sandbox"
+    "start": "electron . --enable-transparent-visuals --disable-gpu --no-sandbox",
+    "build": "electron-builder",
+    "build:linux": "electron-builder --linux",
+    "build:win": "electron-builder --win"
   },
   "keywords": [
     "electron",
@@ -12,10 +15,34 @@
     "linux",
     "transparent"
   ],
-  "author": "",
+  "author": {
+    "name": "Sumedh",
+    "email": "sumedh88@outlook.com"
+  },
+  "homepage": "https://github.com/sumsupee/livechat-overlay",
   "license": "MIT",
+  "dependencies": {
+    "localtunnel": "^2.0.2",
+    "ws": "^8.18.0"
+  },
   "devDependencies": {
-    "electron": "^33.2.0"
+    "electron": "^33.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.sumedh.livechat-overlay",
+    "productName": "Chat on Everything",
+    "files": [
+      "main.js",
+      "index.html",
+      "mobile/**/*"
+    ],
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Utility"
+    },
+    "win": {
+      "target": ["nsis", "portable"]
+    }
   }
 }
-

@@ -151,6 +151,64 @@
     #join-text.visible { display: block; }
     #join-text span { color: var(--accent); }
 
+    /* QR Code display */
+    #qr-overlay {
+      display: none;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 15, 25, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      z-index: 50;
+      padding: 20px;
+      text-align: center;
+    }
+    #qr-overlay.visible { display: flex; }
+    
+    #qr-overlay img {
+      width: 140px;
+      height: 140px;
+      border-radius: 10px;
+      background: white;
+      padding: 8px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 20px rgba(0, 212, 170, 0.3);
+    }
+    
+    #qr-overlay .qr-title {
+      font: 600 12px 'JetBrains Mono', monospace;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    
+    #qr-overlay .qr-url {
+      font: 10px 'JetBrains Mono', monospace;
+      color: var(--text-dim);
+      word-break: break-all;
+      padding: 6px 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      max-width: 90%;
+    }
+    
+    #qr-overlay .qr-back-btn {
+      margin-top: 16px;
+      padding: 8px 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font: 500 12px 'Outfit', sans-serif;
+      cursor: pointer;
+    }
+    #qr-overlay .qr-back-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
     /* Mode indicator */
     #mode {
       position: absolute; bottom: 10px; left: 10px;
@@ -173,12 +231,50 @@
       transform: translate(-50%, -50%);
       background: rgba(15, 15, 25, 0.98);
       backdrop-filter: blur(16px);
-      padding: 20px 24px;
+      padding: 0;
       border-radius: 14px;
       border: 1px solid rgba(0, 212, 170, 0.3);
       box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
       z-index: 200;
-      min-width: 220px;
+      min-width: 280px;
+      max-width: 340px;
+      max-height: 90vh;
+      overflow: hidden;
+    }
+    /* Actual scroll container (native scrollbar fully hidden) */
+    #settings-scroll {
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 20px 24px;
+      scrollbar-width: none; /* Firefox */
+    }
+    #settings-scroll::-webkit-scrollbar { width: 0; height: 0; } /* Chromium/Electron */
+
+    /* Custom thumb-only scrollbar (no buttons) */
+    #settings-scrollbar {
+      position: absolute;
+      top: 14px;
+      right: 8px;
+      bottom: 14px;
+      width: 6px;
+      background: transparent;
+      pointer-events: none; /* thumb enables interaction */
+    }
+    #settings-scroll-thumb {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 24px;
+      border-radius: 999px;
+      background: rgba(0, 170, 136, 0.95);
+      opacity: 0.9;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    #settings-scroll-thumb:hover {
+      opacity: 1;
+      background: rgba(0, 196, 158, 1);
     }
     #settings.open { display: block; }
 
@@ -225,6 +321,16 @@
       min-width: 28px;
       text-align: center;
     }
+    #settings .settings-link {
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      user-select: text;
+    }
+    #settings .settings-link:hover {
+      text-decoration: none;
+      opacity: 0.95;
+    }
 
     /* Settings backdrop */
     #settings-backdrop, #confirm-backdrop {
@@ -233,6 +339,9 @@
       top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0, 0, 0, 0.4);
       z-index: 150;
+      /* Ensure the dimming layer respects the overlay rounded corners */
+      border-radius: 12px;
+      clip-path: inset(0 round 12px);
     }
     #settings-backdrop.open, #confirm-backdrop.open { display: block; }
 
@@ -295,10 +404,10 @@
 </head>
 <body>
   <div id="app">
-    <div id="drag-bar">
+    <div id="drag-bar" title="Drag to Move">
       <div style="display:flex;align-items:center;gap:10px">
         <div class="grip"><span></span><span></span><span></span></div>
-        DRAG TO MOVE
+        <span title="Drag to Move">Chat on Everything</span>
       </div>
       <div style="display:flex;gap:8px">
         <button id="passiveBtn" class="bar-btn" title="Immersive Mode Ctrl+Shift+O/F9">👁</button>
@@ -308,7 +417,15 @@
     </div>
 
     <div id="messages"></div>
-    <div id="join-text">Join LiveChat: <span id="session-code">ABC123</span></div>
+    <div id="join-text">Join Chat on Everything: <span id="session-code">ABC123</span></div>
+    
+    <!-- QR Code Overlay -->
+    <div id="qr-overlay">
+      <img id="qr-image" src="" alt="QR Code">
+      <div class="qr-title">Scan to Join</div>
+      <div class="qr-url" id="qr-url"></div>
+      <button class="qr-back-btn" id="qr-back-btn">Continue</button>
+    </div>
     
     <!-- Resize edges -->
     <div class="resize-edge top" data-dir="n"></div>
@@ -322,26 +439,68 @@
     
     <div id="settings-backdrop"></div>
     <div id="settings">
-      <h3>
-        Settings
-        <button class="close-settings">✕</button>
-      </h3>
-      <label>Max Messages</label>
-      <div class="setting-row">
-        <input type="range" id="maxMsgSlider" min="2" max="10" value="5">
-        <span class="value" id="maxMsgValue">5</span>
+      <div id="settings-scroll">
+        <h3>
+          Settings
+          <button class="close-settings">✕</button>
+        </h3>
+        
+        <!-- Session Info Section -->
+        <div style="font:500 12px 'Outfit',sans-serif;color:var(--accent);margin:4px 0 12px 0;">
+      Session Details
+        </div>
+        <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+          <label>Mobile URL</label>
+          <a style="font:500 11px 'JetBrains Mono',monospace;margin:4px 0 12px 0;word-break:break-all;display:block" class="settings-link" id="mobile-url" href="#">Loading...</a>
+          
+          <label>Admin URL</label>
+          <a style="font:500 11px 'JetBrains Mono',monospace;margin:4px 0 12px 0;word-break:break-all;display:block" class="settings-link" id="admin-url" href="#">Loading...</a>
+          
+          <label>Admin Password</label>
+          <div style="font:600 11px 'JetBrains Mono',monospace;color:var(--accent);margin:4px 0 12px 0" id="admin-password">--------</div>
+
+          <label>Hotkey</label>
+          <div style="font:600 11px 'JetBrains Mono',monospace;color:var(--accent);margin:4px 0 12px 0" id="admin-password">Ctrl+Shift+O/F9</div>
+          <label>Support</label>
+          <div style="font:600 11px 'JetBrains Mono',monospace;color:var(--accent);margin:4px 0 12px 0" id="admin-password">Sumedh Supe</div>
+        </div>
+        
+        <!-- Display Settings -->
+        <label>Max Messages</label>
+        <div class="setting-row">
+          <input type="range" id="maxMsgSlider" min="2" max="10" value="5">
+          <span class="value" id="maxMsgValue">5</span>
+        </div>
+        
+        <label style="margin-top:16px">Font Size</label>
+        <div class="setting-row">
+        <input type="range" id="fontSizeSlider" min="10" max="48" value="13">
+          <span class="value" id="fontSizeValue">13</span>
+        </div>
+        
+        <label style="margin-top:16px">
+          <input type="checkbox" id="showJoinCode" style="margin-right:8px;accent-color:var(--accent)">
+          Show Join Code
+        </label>
+        
+        <label style="margin-top:12px">
+          <input type="checkbox" id="showMobileLink" style="margin-right:8px;accent-color:var(--accent)">
+          Show QR Code
+        </label>
+        
+        <label style="margin-top:12px">
+          <input type="checkbox" id="disableChatHistory" checked style="margin-right:8px;accent-color:var(--accent)">
+          Disable Chat History for Others
+        </label>
+
+        <label style="margin-top:12px">
+          <input type="checkbox" id="enableFeedbackForm" style="margin-right:8px;accent-color:var(--accent)">
+          Enable Feedback Form
+        </label>
       </div>
-      
-      <label style="margin-top:16px">Font Size</label>
-      <div class="setting-row">
-        <input type="range" id="fontSizeSlider" min="10" max="20" value="13">
-        <span class="value" id="fontSizeValue">13</span>
+      <div id="settings-scrollbar" aria-hidden="true">
+        <div id="settings-scroll-thumb"></div>
       </div>
-      
-      <label style="margin-top:16px">
-        <input type="checkbox" id="showJoinCode" checked style="margin-right:8px;accent-color:var(--accent)">
-        Show Join Code
-      </label>
     </div>
 
     <div id="confirm-backdrop"></div>
@@ -353,11 +512,11 @@
       </div>
     </div>
     
-    <div id="mode">PASSIVE</div>
+    <div id="mode">ACTIVE</div>
   </div>
 
   <script>
-    const { ipcRenderer } = require('electron');
+    const { ipcRenderer, shell } = require('electron');
 
     const $ = id => document.getElementById(id);
     const app = $('app'), dragBar = $('drag-bar');
@@ -445,10 +604,47 @@
     // Settings menu
     const settings = $('settings');
     const settingsBackdrop = $('settings-backdrop');
+    const settingsScroll = $('settings-scroll');
+    const settingsScrollBar = $('settings-scrollbar');
+    const settingsScrollThumb = $('settings-scroll-thumb');
+    let settingsThumbDrag = null;
+
+    function updateSettingsThumb() {
+      if (!settingsScroll || !settingsScrollBar || !settingsScrollThumb) return;
+      const ch = settingsScroll.clientHeight;
+      const sh = settingsScroll.scrollHeight;
+      const trackH = settingsScrollBar.clientHeight;
+
+      // If hidden/not laid out yet, bail.
+      if (ch <= 0 || sh <= 0 || trackH <= 0) return;
+
+      // No scrolling needed -> hide custom thumb.
+      if (sh <= ch + 1) {
+        settingsScrollBar.style.display = 'none';
+        return;
+      }
+
+      settingsScrollBar.style.display = 'block';
+
+      // Make the thumb intentionally shorter (UX preference), but keep it usable.
+      const thumbScale = 0.75;
+      const minThumb = 18;
+      const idealThumb = Math.round(trackH * (ch / sh) * thumbScale);
+      const thumbH = Math.max(minThumb, idealThumb);
+      const maxTop = Math.max(0, trackH - thumbH);
+      const maxScroll = Math.max(1, sh - ch);
+      const rawTop = (settingsScroll.scrollTop / maxScroll) * maxTop;
+      const top = Math.min(maxTop, Math.max(0, rawTop));
+
+      settingsScrollThumb.style.height = `${thumbH}px`;
+      settingsScrollThumb.style.transform = `translateY(${top}px)`;
+    }
     
     function openSettings() {
       settings.classList.add('open');
       settingsBackdrop.classList.add('open');
+      // Let layout happen before calculating scroll metrics.
+      requestAnimationFrame(() => requestAnimationFrame(updateSettingsThumb));
     }
     
     function closeSettings() {
@@ -460,6 +656,45 @@
     settings.querySelector('.close-settings').onclick = closeSettings;
     settingsBackdrop.onclick = closeSettings;
 
+    // Custom scrollbar wiring (thumb-only)
+    if (settingsScroll) {
+      settingsScroll.addEventListener('scroll', updateSettingsThumb, { passive: true });
+    }
+
+    if (settingsScrollThumb && settingsScroll) {
+      settingsScrollThumb.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const ch = settingsScroll.clientHeight;
+        const sh = settingsScroll.scrollHeight;
+        const thumbH = settingsScrollThumb.getBoundingClientRect().height;
+        const trackH = settingsScrollBar ? settingsScrollBar.clientHeight : ch;
+        const maxTop = Math.max(1, trackH - thumbH);
+        const maxScroll = Math.max(1, sh - ch);
+
+        settingsThumbDrag = {
+          startY: e.clientY,
+          startScrollTop: settingsScroll.scrollTop,
+          pxToScroll: maxScroll / maxTop,
+        };
+      });
+    }
+
+    document.addEventListener('mousemove', (e) => {
+      if (!settingsThumbDrag || !settingsScroll) return;
+      const dy = e.clientY - settingsThumbDrag.startY;
+      settingsScroll.scrollTop = settingsThumbDrag.startScrollTop + (dy * settingsThumbDrag.pxToScroll);
+    });
+
+    document.addEventListener('mouseup', () => { settingsThumbDrag = null; });
+
+    // Keep thumb correct if content/size changes.
+    if (window.ResizeObserver && settingsScroll) {
+      const ro = new ResizeObserver(() => updateSettingsThumb());
+      ro.observe(settingsScroll);
+    } else {
+      window.addEventListener('resize', updateSettingsThumb);
+    }
+
     // Settings
     let maxMessages = 5;
     const maxMsgSlider = $('maxMsgSlider');
@@ -470,6 +705,7 @@
       maxMsgValue.textContent = maxMessages;
       trimMessages();
       updateOpacity();
+      ipcRenderer.send('settings-changed', { maxMessages });
     };
 
     // Font size setting
@@ -488,12 +724,13 @@
       const size = parseInt(fontSizeSlider.value);
       fontSizeValue.textContent = size;
       applyFontSize(size);
+      ipcRenderer.send('settings-changed', { fontSize: size });
     };
 
     // Join code visibility
     const joinText = $('join-text');
     const showJoinCodeCheckbox = $('showJoinCode');
-    let showJoinCode = true;
+    let showJoinCode = false; // Default to hidden
 
     function updateJoinTextVisibility() {
       const hasMessages = messages.children.length > 0;
@@ -507,7 +744,53 @@
     showJoinCodeCheckbox.onchange = () => {
       showJoinCode = showJoinCodeCheckbox.checked;
       updateJoinTextVisibility();
+      ipcRenderer.send('settings-changed', { showJoinCode });
     };
+
+    // Show QR Code setting
+    const showMobileLinkCheckbox = $('showMobileLink');
+    const qrOverlay = $('qr-overlay');
+    const qrImage = $('qr-image');
+    const qrUrlEl = $('qr-url');
+    let mobileUrl = '';
+    
+    function updateQRDisplay(show) {
+      if (show && mobileUrl) {
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(mobileUrl)}`;
+        qrImage.src = qrApiUrl;
+        qrUrlEl.textContent = mobileUrl;
+        qrOverlay.classList.add('visible');
+      } else {
+        qrOverlay.classList.remove('visible');
+      }
+    }
+    
+    showMobileLinkCheckbox.onchange = () => {
+      updateQRDisplay(showMobileLinkCheckbox.checked);
+      ipcRenderer.send('settings-changed', { showMobileLink: showMobileLinkCheckbox.checked });
+    };
+    
+    // QR back button
+    $('qr-back-btn').onclick = () => {
+      showMobileLinkCheckbox.checked = false;
+      updateQRDisplay(false);
+      ipcRenderer.send('settings-changed', { showMobileLink: false });
+    };
+
+    // Disable chat history setting
+    const disableChatHistoryCheckbox = $('disableChatHistory');
+    
+    disableChatHistoryCheckbox.onchange = () => {
+      ipcRenderer.send('settings-changed', { disableChatHistory: disableChatHistoryCheckbox.checked });
+    };
+
+    // Feedback form setting (mobile-only)
+    const enableFeedbackFormCheckbox = $('enableFeedbackForm');
+    if (enableFeedbackFormCheckbox) {
+      enableFeedbackFormCheckbox.onchange = () => {
+        ipcRenderer.send('settings-changed', { enableFeedbackForm: enableFeedbackFormCheckbox.checked });
+      };
+    }
 
     // Trim excess messages
     function trimMessages() {
@@ -549,10 +832,16 @@
       return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
 
+    // Message ID counter (for local messages without server ID)
+    let localMsgId = 0;
+
     // Message helpers
-    function addMsg(user, text) {
+    function addMsg(user, text, msgId = null) {
+      const id = msgId || (--localMsgId); // Use negative IDs for local messages
+      
       const el = document.createElement('div');
       el.className = 'msg';
+      el.dataset.msgId = id;
       el.innerHTML = `<button class="del">🗑</button><span class="user">${user}:</span><span class="text">${text}</span>`;
       
       // Apply username color
@@ -568,17 +857,13 @@
       
       // Delete button handler
       el.querySelector('.del').onclick = () => {
-        el.style.transition = 'opacity 1.3s';
-        el.style.opacity = '0';
-        setTimeout(() => { el.remove(); updateOpacity(); updateJoinTextVisibility(); }, 1300);
+        deleteMessage(el);
       };
       
       // Auto-hide after display time
       setTimeout(() => {
         if (el.parentNode) {
-          el.style.transition = 'opacity 1.3s';
-          el.style.opacity = '0';
-          setTimeout(() => { el.remove(); updateOpacity(); updateJoinTextVisibility(); }, 1300);
+          deleteMessage(el);
         }
       }, MSG_DISPLAY_TIME);
       
@@ -587,16 +872,102 @@
       messages.scrollTop = messages.scrollHeight;
       updateOpacity();
       updateJoinTextVisibility();
+      
+      return id;
+    }
+    
+    // Delete message with animation
+    function deleteMessage(el) {
+      el.style.transition = 'opacity 1.3s';
+      el.style.opacity = '0';
+      setTimeout(() => { el.remove(); updateOpacity(); updateJoinTextVisibility(); }, 1300);
+    }
+    
+    // Delete message by ID (from admin)
+    function deleteMessageById(id) {
+      const el = messages.querySelector(`[data-msg-id="${id}"]`);
+      if (el) deleteMessage(el);
     }
 
-    // Initial messages
-    addMsg('MovieFan42', 'Whoa, did you see that scene?! 🔥');
-    addMsg('CinemaLover', 'This cinematography is incredible');
+    // Listen for messages from WebSocket server (via main process)
+    ipcRenderer.on('new-message', (_, data) => {
+      addMsg(data.user, data.text, data.id);
+    });
+    
+    // Listen for message deletion from admin
+    ipcRenderer.on('delete-message', (_, data) => {
+      deleteMessageById(data.id);
+    });
+    
+    // Listen for settings updates from admin
+    ipcRenderer.on('settings-update', (_, settings) => {
+      if (settings.maxMessages !== undefined) {
+        maxMessages = settings.maxMessages;
+        maxMsgSlider.value = maxMessages;
+        maxMsgValue.textContent = maxMessages;
+        trimMessages();
+        updateOpacity();
+      }
+      if (settings.fontSize !== undefined) {
+        fontSizeSlider.value = settings.fontSize;
+        fontSizeValue.textContent = settings.fontSize;
+        applyFontSize(settings.fontSize);
+      }
+      if (settings.showJoinCode !== undefined) {
+        showJoinCode = settings.showJoinCode;
+        showJoinCodeCheckbox.checked = showJoinCode;
+        updateJoinTextVisibility();
+      }
+      if (settings.showMobileLink !== undefined) {
+        showMobileLinkCheckbox.checked = settings.showMobileLink;
+        updateQRDisplay(settings.showMobileLink);
+      }
+      if (settings.disableChatHistory !== undefined) {
+        disableChatHistoryCheckbox.checked = settings.disableChatHistory;
+      }
+      if (settings.enableFeedbackForm !== undefined && enableFeedbackFormCheckbox) {
+        enableFeedbackFormCheckbox.checked = settings.enableFeedbackForm;
+      }
+    });
 
-    // Mock feed
-    const users = ['FilmBuff99', 'CinemaFan', 'MovieNerd', 'ScreenTime', 'PopcornKing'];
-    const texts = ['This scene is legendary! 🎬', 'Wait for it...', 'Best part coming up!', 'That plot twist though 😮', 'The soundtrack here 🎵'];
-    setInterval(() => addMsg(users[Math.random()*users.length|0], texts[Math.random()*texts.length|0]), 4000);
+    // Get session info on startup
+    function normalizeExternalUrl(url) {
+      const u = String(url || '').trim();
+      if (!u) return '';
+      // If protocol missing, default to http (shouldn't happen, but keeps links usable).
+      if (!/^https?:\/\//i.test(u)) return `http://${u}`;
+      return u;
+    }
+
+    function setExternalLink(el, url) {
+      if (!el) return;
+      const safeUrl = normalizeExternalUrl(url);
+      el.textContent = url || '';
+      el.href = safeUrl || '#';
+      el.onclick = (e) => {
+        e.preventDefault();
+        if (safeUrl) shell.openExternal(safeUrl);
+      };
+    }
+
+    async function initSession() {
+      try {
+        const info = await ipcRenderer.invoke('get-session-info');
+        $('session-code').textContent = info.code;
+        $('admin-password').textContent = info.adminPassword;
+        setExternalLink($('mobile-url'), info.mobileUrl);
+        setExternalLink($('admin-url'), info.adminUrl);
+        mobileUrl = info.mobileUrl;
+      } catch (e) {
+        console.log('Could not get session info');
+      }
+    }
+    initSession();
+
+    // Listen for open-settings command (on startup)
+    ipcRenderer.on('open-settings', () => {
+      openSettings();
+    });
 
     // Show mode on start
     setTimeout(() => { mode.classList.add('show'); setTimeout(() => mode.classList.remove('show'), 2000); }, 500);

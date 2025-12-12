@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Chat on Everything Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: rgba(15, 15, 25, 0.95);
+      --bg-solid: #0f0f19;
+      --accent: #00d4aa;
+      --accent2: #7c3aed;
+      --text: #f0f0f5;
+      --text-dim: #a0a0b0;
+      --border: rgba(255, 255, 255, 0.1);
+      --danger: #ff4757;
+      --warning: #ffa502;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: var(--bg-solid);
+      font-family: 'Outfit', sans-serif;
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      padding: 20px;
+      text-align: center;
+      background: linear-gradient(180deg, rgba(124, 58, 237, 0.2), transparent);
+      border-bottom: 1px solid var(--border);
+    }
+
+    header h1 {
+      margin: 0;
+      font: 600 20px 'JetBrains Mono', monospace;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      margin: 8px 0 0 0;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    /* Status indicator */
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+      font: 12px 'JetBrains Mono', monospace;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--danger);
+      transition: background 0.3s;
+    }
+
+    .status-dot.connected {
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    /* Login panel */
+    #login-panel {
+      padding: 24px 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    #login-panel.hidden {
+      display: none;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font: 500 11px 'JetBrains Mono', monospace;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font: 16px 'Outfit', sans-serif;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      border-color: var(--accent2);
+      background: rgba(124, 58, 237, 0.05);
+    }
+
+    input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 10px;
+      font: 600 16px 'Outfit', sans-serif;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      color: white;
+    }
+
+    .error {
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    /* Admin panel */
+    #admin-panel {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #admin-panel.visible {
+      display: flex;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 14px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font: 500 13px 'Outfit', sans-serif;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+      border-bottom: 2px solid transparent;
+    }
+
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* Tab content */
+    .tab-content {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Messages tab */
+    #messages-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .msg-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      animation: slideIn 0.2s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-10px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .msg-item .content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .msg-item .user {
+      font: 600 11px 'JetBrains Mono', monospace;
+      margin-bottom: 4px;
+    }
+
+    .msg-item .text {
+      font-size: 14px;
+      color: var(--text);
+      word-break: break-word;
+    }
+
+    .msg-item .delete-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(255, 71, 87, 0.2);
+      border: none;
+      color: var(--danger);
+      font-size: 14px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .msg-item .delete-btn:hover {
+      background: var(--danger);
+      color: white;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-dim);
+      padding: 40px 20px;
+      font-size: 14px;
+    }
+
+    /* Message input area */
+    #message-input-area {
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.3);
+      border-top: 1px solid var(--border);
+    }
+
+    .username-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .username-row label {
+      margin: 0;
+      white-space: nowrap;
+    }
+
+    .username-row input {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 14px;
+      border-radius: 8px;
+    }
+
+    .message-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    #admin-msg-input {
+      flex: 1;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--text);
+      font: 15px 'Outfit', sans-serif;
+      outline: none;
+    }
+
+    #admin-msg-input:focus {
+      border-color: var(--accent);
+    }
+
+    #admin-send-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      border: none;
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    #admin-send-btn:active {
+      transform: scale(0.9);
+    }
+
+    /* Settings tab */
+    .setting-group {
+      margin-bottom: 24px;
+    }
+
+    .setting-group label {
+      margin-bottom: 12px;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      height: 6px;
+      accent-color: var(--accent);
+    }
+
+    .setting-value {
+      font: 600 18px 'JetBrains Mono', monospace;
+      color: var(--accent);
+      min-width: 36px;
+      text-align: center;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toggle-row label {
+      margin: 0;
+      text-transform: none;
+      font: 500 14px 'Outfit', sans-serif;
+      color: var(--text);
+    }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative;
+      width: 50px;
+      height: 28px;
+      cursor: pointer;
+    }
+
+    .toggle input {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 28px;
+      transition: 0.3s;
+      pointer-events: none;
+    }
+
+    .toggle-slider::before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+
+    .toggle input:checked + .toggle-slider {
+      background: var(--accent);
+    }
+
+    .toggle input:checked + .toggle-slider::before {
+      transform: translateX(22px);
+    }
+
+    /* Safe area for notched phones */
+    @supports (padding-top: env(safe-area-inset-top)) {
+      header {
+        padding-top: calc(20px + env(safe-area-inset-top));
+      }
+      #message-input-area {
+        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      }
+    }
+
+    /* Adjust tab content to not overlap with message input */
+    .tab-content {
+      padding-bottom: 8px;
+    }
+
+    /* Blocked IPs UI */
+    #blocked-ips-list {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .blocked-ip-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      background: rgba(15, 15, 25, 0.45);
+    }
+    .blocked-ip-item .ip {
+      font: 600 12px 'JetBrains Mono', monospace;
+      color: var(--accent);
+      word-break: break-all;
+    }
+    .blocked-ip-item button {
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: none;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      cursor: pointer;
+    }
+    .blocked-ip-item button:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    /* Emoji shortcuts */
+    #admin-emoji-bar {
+      display: flex;
+      gap: 8px;
+      padding: 0 0 10px 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #admin-emoji-bar::-webkit-scrollbar { height: 0; }
+    .emoji-btn {
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .emoji-btn:active { transform: scale(0.95); }
+
+    #customEmojiInput {
+      width: 120px;
+    }
+
+    .emoji-preview {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      background: rgba(255, 255, 255, 0.06);
+      font-size: 18px;
+      flex: 0 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Admin Panel</h1>
+      <p>Moderate messages and control settings</p>
+      <div class="status">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Disconnected</span>
+      </div>
+    </header>
+
+    <!-- Login Panel -->
+    <div id="login-panel">
+      <div class="form-group">
+        <label>Server Address</label>
+        <input type="text" id="server-input" placeholder="192.168.1.100:8765" autocomplete="off" autocapitalize="off">
+      </div>
+      <div class="form-group">
+        <label>Admin Password</label>
+        <input type="password" id="password-input" placeholder="Enter admin password" autocomplete="off">
+      </div>
+      <div class="error" id="login-error"></div>
+      <button class="btn btn-primary" id="login-btn">Login</button>
+    </div>
+
+    <!-- Admin Panel -->
+    <div id="admin-panel">
+      <div class="tabs">
+        <button class="tab active" data-tab="messages">Messages</button>
+        <button class="tab" data-tab="settings">Settings</button>
+      </div>
+
+      <!-- Messages Tab -->
+      <div class="tab-content active" id="tab-messages">
+        <div id="messages-list">
+          <div class="empty-state">No messages yet</div>
+        </div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div class="tab-content" id="tab-settings">
+        <div class="setting-group">
+          <label>Max Messages</label>
+          <div class="setting-row">
+            <input type="range" id="maxMsgSlider" min="2" max="10" value="5">
+            <span class="setting-value" id="maxMsgValue">5</span>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label>Font Size</label>
+          <div class="setting-row">
+            <input type="range" id="fontSizeSlider" min="10" max="48" value="13">
+            <span class="setting-value" id="fontSizeValue">13</span>
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <label>Show Join Code</label>
+          <div class="toggle">
+            <input type="checkbox" id="showJoinCode">
+            <span class="toggle-slider"></span>
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <label>Show QR Code on Overlay</label>
+          <div class="toggle">
+            <input type="checkbox" id="showMobileLink">
+            <span class="toggle-slider"></span>
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <label>Disable Chat History for Others</label>
+          <div class="toggle">
+            <input type="checkbox" id="disableChatHistory" checked>
+            <span class="toggle-slider"></span>
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <label>Enable Feedback Form</label>
+          <div class="toggle">
+            <input type="checkbox" id="enableFeedbackForm">
+            <span class="toggle-slider"></span>
+          </div>
+        </div>
+
+        <div class="setting-group" style="margin-top: 18px;">
+          <label>Custom Emoji Shortcut</label>
+          <div class="setting-row">
+            <div class="emoji-preview" id="customEmojiCurrent" aria-label="Current custom emoji">⭐</div>
+            <input type="text" id="customEmojiInput" placeholder="Type emoji (blank = ⭐)" maxlength="8" autocomplete="off">
+            <button class="btn" id="customEmojiSetBtn" type="button">Set</button>
+          </div>
+        </div>
+
+        <div class="setting-group" style="margin-top: 18px;">
+          <label>Blocked IP Addresses</label>
+          <div id="blocked-ips-list">
+            <div class="empty-state">No blocked IPs</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message Input Area -->
+      <div id="message-input-area">
+        <div class="username-row">
+          <label>As:</label>
+          <input type="text" id="admin-username" placeholder="Admin" autocomplete="off">
+        </div>
+        <div id="admin-emoji-bar" aria-label="Reactions">
+          <button class="emoji-btn" type="button" data-emoji="😂" aria-label="Laugh">😂</button>
+          <button class="emoji-btn" type="button" data-emoji="❤️" aria-label="Love">❤️</button>
+          <button class="emoji-btn" type="button" data-emoji="👍" aria-label="Thumbs up">👍</button>
+          <button class="emoji-btn" type="button" data-emoji="👎" aria-label="Boo">👎</button>
+          <button class="emoji-btn" type="button" data-emoji="😮" aria-label="Wow">😮</button>
+          <button class="emoji-btn" type="button" data-emoji="😢" aria-label="Cry">😢</button>
+          <button class="emoji-btn" type="button" id="admin-custom-emoji-btn" data-emoji="⭐" aria-label="Custom reaction">⭐</button>
+        </div>
+        <div class="message-row">
+          <input type="text" id="admin-msg-input" placeholder="Send a message..." autocomplete="off">
+          <button id="admin-send-btn">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    // Elements
+    const loginPanel = $('login-panel');
+    const adminPanel = $('admin-panel');
+    const serverInput = $('server-input');
+    const passwordInput = $('password-input');
+    const loginBtn = $('login-btn');
+    const loginError = $('login-error');
+    const statusDot = $('status-dot');
+    const statusText = $('status-text');
+    const messagesList = $('messages-list');
+
+    // Settings elements
+    const maxMsgSlider = $('maxMsgSlider');
+    const maxMsgValue = $('maxMsgValue');
+    const fontSizeSlider = $('fontSizeSlider');
+    const fontSizeValue = $('fontSizeValue');
+    const showJoinCodeToggle = $('showJoinCode');
+    const showMobileLinkToggle = $('showMobileLink');
+    const disableChatHistoryToggle = $('disableChatHistory');
+    const enableFeedbackFormToggle = $('enableFeedbackForm');
+    const customEmojiInput = $('customEmojiInput');
+    const customEmojiSetBtn = $('customEmojiSetBtn');
+    const customEmojiCurrent = $('customEmojiCurrent');
+
+    // Blocked IPs elements
+    const blockedIpsList = $('blocked-ips-list');
+    let blockedIps = [];
+
+    // Message input elements
+    const adminUsername = $('admin-username');
+    const adminMsgInput = $('admin-msg-input');
+    const adminSendBtn = $('admin-send-btn');
+    const adminEmojiBar = $('admin-emoji-bar');
+    const adminCustomEmojiBtn = $('admin-custom-emoji-btn');
+
+    let ws = null;
+    let messages = new Map(); // msgId -> {user, text}
+    let isApplyingSettings = false; // Flag to prevent feedback loop
+    const DEFAULT_CUSTOM_EMOJI = '⭐';
+    let customEmoji = DEFAULT_CUSTOM_EMOJI;
+    
+    // Detect if page is served over HTTPS (secure tunnel)
+    const isSecure = window.location.protocol === 'https:';
+
+    // Load saved values
+    serverInput.value = localStorage.getItem('livechat_server') || '';
+    if (!serverInput.value && window.location.hostname !== 'localhost') {
+      if (isSecure) {
+        // For HTTPS tunnel, leave empty - user needs to enter WSS tunnel URL
+        serverInput.placeholder = 'Enter WSS tunnel URL';
+      } else {
+        serverInput.value = window.location.hostname + ':8765';
+      }
+    }
+    adminUsername.value = localStorage.getItem('livechat_admin_name') || 'Admin';
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        $('tab-' + tab.dataset.tab).classList.add('active');
+      };
+    });
+
+    function setStatus(connected, text) {
+      statusDot.classList.toggle('connected', connected);
+      statusText.textContent = text;
+    }
+
+    function showError(msg) {
+      loginError.textContent = msg;
+    }
+
+    function clearError() {
+      loginError.textContent = '';
+    }
+
+    // Generate consistent color for username (same as overlay)
+    function getUserColor(username) {
+      let hash = 0;
+      for (let i = 0; i < username.length; i++) {
+        hash = username.charCodeAt(i) + ((hash << 5) - hash);
+        hash = hash & hash;
+      }
+      const hue = Math.abs(hash) % 360;
+      const saturation = 65 + (Math.abs(hash >> 8) % 20);
+      const lightness = 65 + (Math.abs(hash >> 16) % 15);
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    }
+
+    function login() {
+      const server = serverInput.value.trim();
+      const password = passwordInput.value.trim();
+
+      if (!server) {
+        showError('Please enter server address');
+        return;
+      }
+      if (!password) {
+        showError('Please enter admin password');
+        return;
+      }
+
+      clearError();
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Connecting...';
+      setStatus(false, 'Connecting...');
+
+      localStorage.setItem('livechat_server', server);
+
+      // Determine protocol: use wss:// for HTTPS pages or if explicitly specified
+      let wsUrl;
+      if (server.startsWith('ws://') || server.startsWith('wss://')) {
+        wsUrl = server;
+      } else if (isSecure || server.includes('.loca.lt') || server.includes('ngrok')) {
+        // Use secure WebSocket for HTTPS pages or known tunnel services
+        wsUrl = `wss://${server}`;
+      } else {
+        wsUrl = `ws://${server}`;
+      }
+
+      try {
+        ws = new WebSocket(wsUrl);
+      } catch (e) {
+        showError('Invalid server address');
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Login';
+        setStatus(false, 'Disconnected');
+        return;
+      }
+
+      ws.onopen = () => {
+        setStatus(false, 'Authenticating...');
+        // Send admin auth request
+        ws.send(JSON.stringify({ type: 'admin-auth', password }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.type === 'admin-auth-result') {
+            if (data.success) {
+              setStatus(true, 'Connected as Admin');
+              loginPanel.classList.add('hidden');
+              adminPanel.classList.add('visible');
+              // Apply initial settings
+              if (data.settings) {
+                applySettings(data.settings);
+              }
+              if (Array.isArray(data.blockedIps)) {
+                blockedIps = data.blockedIps;
+                renderBlockedIps();
+              }
+            } else {
+              showError('Invalid admin password');
+              ws.close();
+              loginBtn.disabled = false;
+              loginBtn.textContent = 'Login';
+              setStatus(false, 'Auth failed');
+            }
+          }
+
+          else if (data.type === 'message') {
+            if (data.id !== undefined && data.user && data.text) {
+              addMessage(data.id, data.user, data.text);
+            }
+          }
+
+          else if (data.type === 'message-deleted') {
+            if (data.msgId !== undefined) {
+              removeMessage(data.msgId);
+            }
+          }
+
+          else if (data.type === 'settings-sync') {
+            if (data.settings) {
+              applySettings(data.settings);
+            }
+          }
+          else if (data.type === 'blocked-ips-update') {
+            if (Array.isArray(data.blockedIps)) {
+              blockedIps = data.blockedIps;
+              renderBlockedIps();
+            }
+          }
+          else if (data.type === 'admin-unblock-ip-result') {
+            if (!data.success) {
+              alert('Could not unblock IP (not blocked or invalid).');
+            }
+          }
+          // Ignore other message types like 'session'
+        } catch (e) {
+          console.error('Error handling message:', e, event.data);
+        }
+      };
+
+      ws.onerror = () => {
+        showError('Connection failed');
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Login';
+        setStatus(false, 'Connection failed');
+      };
+
+      ws.onclose = () => {
+        setStatus(false, 'Disconnected');
+        if (adminPanel.classList.contains('visible')) {
+          disconnect();
+        }
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Login';
+      };
+    }
+
+    function disconnect() {
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+      adminPanel.classList.remove('visible');
+      loginPanel.classList.remove('hidden');
+      setStatus(false, 'Disconnected');
+      messages.clear();
+      renderMessages();
+      passwordInput.value = '';
+    }
+
+    function addMessage(id, user, text) {
+      messages.set(id, { user, text });
+      renderMessages();
+    }
+
+    function removeMessage(id) {
+      messages.delete(id);
+      renderMessages();
+    }
+
+    function renderMessages() {
+      if (messages.size === 0) {
+        messagesList.innerHTML = '<div class="empty-state">No messages yet</div>';
+        return;
+      }
+
+      messagesList.innerHTML = '';
+      // Show newest first
+      const sortedMessages = [...messages.entries()].reverse();
+      
+      for (const [id, msg] of sortedMessages) {
+        const el = document.createElement('div');
+        el.className = 'msg-item';
+        el.innerHTML = `
+          <div class="content">
+            <div class="user" style="color: ${getUserColor(msg.user)}">${escapeHtml(msg.user)}</div>
+            <div class="text">${escapeHtml(msg.text)}</div>
+          </div>
+          <button class="delete-btn" data-id="${id}">🗑</button>
+        `;
+        el.querySelector('.delete-btn').onclick = () => deleteMessage(id);
+        messagesList.appendChild(el);
+      }
+    }
+
+    function deleteMessage(id) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'admin-delete-msg', msgId: id }));
+      }
+    }
+
+    function applySettings(settings) {
+      isApplyingSettings = true; // Prevent feedback loop
+      if (settings.maxMessages !== undefined) {
+        maxMsgSlider.value = settings.maxMessages;
+        maxMsgValue.textContent = settings.maxMessages;
+      }
+      if (settings.fontSize !== undefined) {
+        fontSizeSlider.value = settings.fontSize;
+        fontSizeValue.textContent = settings.fontSize;
+      }
+      if (settings.showJoinCode !== undefined) {
+        showJoinCodeToggle.checked = settings.showJoinCode;
+      }
+      if (settings.showMobileLink !== undefined) {
+        showMobileLinkToggle.checked = settings.showMobileLink;
+      }
+      if (settings.disableChatHistory !== undefined) {
+        disableChatHistoryToggle.checked = settings.disableChatHistory;
+      }
+      if (settings.enableFeedbackForm !== undefined && enableFeedbackFormToggle) {
+        enableFeedbackFormToggle.checked = settings.enableFeedbackForm;
+      }
+      if (settings.customEmoji !== undefined) {
+        setCustomEmoji(settings.customEmoji);
+      }
+      isApplyingSettings = false;
+    }
+
+    function sendSettings(settings) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'admin-settings', ...settings }));
+      }
+    }
+
+    function normalizeIp(ip) {
+      return String(ip || '').trim().replace(/^::ffff:/, '');
+    }
+
+    function renderBlockedIps() {
+      if (!blockedIpsList) return;
+      const list = (blockedIps || []).map(normalizeIp).filter(Boolean);
+      if (list.length === 0) {
+        blockedIpsList.innerHTML = '<div class="empty-state">No blocked IPs</div>';
+        return;
+      }
+      blockedIpsList.innerHTML = '';
+      for (const ip of list.sort()) {
+        const el = document.createElement('div');
+        el.className = 'blocked-ip-item';
+        el.innerHTML = `
+          <div class="ip">${escapeHtml(ip)}</div>
+          <button data-ip="${escapeHtml(ip)}">Unblock</button>
+        `;
+        el.querySelector('button').onclick = () => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'admin-unblock-ip', ip }));
+          }
+        };
+        blockedIpsList.appendChild(el);
+      }
+    }
+
+    function sendAdminText(text) {
+      const user = adminUsername.value.trim() || 'Admin';
+      const clean = String(text || '').trim();
+      if (!clean || !ws || ws.readyState !== WebSocket.OPEN) return;
+      // Save username
+      localStorage.setItem('livechat_admin_name', user);
+
+      ws.send(JSON.stringify({
+        type: 'message',
+        user: user,
+        text: clean
+      }));
+
+      adminMsgInput.value = '';
+      adminMsgInput.focus();
+    }
+
+    function sanitizeEmoji(val) {
+      const s = String(val || '').trim().slice(0, 8);
+      return s || DEFAULT_CUSTOM_EMOJI;
+    }
+
+    function setCustomEmoji(val) {
+      customEmoji = sanitizeEmoji(val);
+      if (adminCustomEmojiBtn) {
+        adminCustomEmojiBtn.textContent = customEmoji;
+        adminCustomEmojiBtn.dataset.emoji = customEmoji;
+      }
+      if (customEmojiCurrent) customEmojiCurrent.textContent = customEmoji;
+    }
+
+    function commitCustomEmojiChange() {
+      if (isApplyingSettings) return;
+      // If left blank, default emoji is used.
+      const raw = customEmojiInput ? customEmojiInput.value : '';
+      const next = sanitizeEmoji(raw);
+      setCustomEmoji(next);
+      // Clear the input after applying so it's easy to type a new one.
+      if (customEmojiInput) customEmojiInput.value = '';
+      sendSettings({ customEmoji });
+    }
+
+    function sendAdminMessage() {
+      sendAdminText(adminMsgInput.value);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Emoji bar: auto-send on tap
+    if (adminEmojiBar) {
+      adminEmojiBar.addEventListener('click', (e) => {
+        const btn = e.target && e.target.closest ? e.target.closest('button[data-emoji]') : null;
+        if (!btn) return;
+        sendAdminText(btn.dataset.emoji);
+      });
+    }
+
+    // Custom emoji setting (confirm button)
+    if (customEmojiSetBtn) {
+      customEmojiSetBtn.onclick = commitCustomEmojiChange;
+    }
+    if (customEmojiInput) {
+      customEmojiInput.onkeypress = (e) => {
+        if (e.key === 'Enter') commitCustomEmojiChange();
+      };
+    }
+
+    // Event listeners
+    loginBtn.onclick = login;
+    adminSendBtn.onclick = sendAdminMessage;
+
+    adminMsgInput.onkeypress = (e) => {
+      if (e.key === 'Enter') sendAdminMessage();
+    };
+
+    passwordInput.onkeypress = (e) => {
+      if (e.key === 'Enter') login();
+    };
+
+    serverInput.onkeypress = (e) => {
+      if (e.key === 'Enter') passwordInput.focus();
+    };
+
+    // Settings event listeners (with feedback loop protection)
+    maxMsgSlider.oninput = () => {
+      if (isApplyingSettings) return;
+      const val = parseInt(maxMsgSlider.value);
+      maxMsgValue.textContent = val;
+      sendSettings({ maxMessages: val });
+    };
+
+    fontSizeSlider.oninput = () => {
+      if (isApplyingSettings) return;
+      const val = parseInt(fontSizeSlider.value);
+      fontSizeValue.textContent = val;
+      sendSettings({ fontSize: val });
+    };
+
+    showJoinCodeToggle.onchange = () => {
+      if (isApplyingSettings) return;
+      sendSettings({ showJoinCode: showJoinCodeToggle.checked });
+    };
+
+    showMobileLinkToggle.onchange = () => {
+      if (isApplyingSettings) return;
+      sendSettings({ showMobileLink: showMobileLinkToggle.checked });
+    };
+
+    disableChatHistoryToggle.onchange = () => {
+      if (isApplyingSettings) return;
+      sendSettings({ disableChatHistory: disableChatHistoryToggle.checked });
+    };
+
+    if (enableFeedbackFormToggle) {
+      enableFeedbackFormToggle.onchange = () => {
+        if (isApplyingSettings) return;
+        sendSettings({ enableFeedbackForm: enableFeedbackFormToggle.checked });
+      };
+    }
+
+    // Manual block UI removed; IPs are auto-blocked after 2 deletions.
+
+    // Prevent zoom on double tap (but not on inputs)
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+          e.preventDefault();
+        }
+      }
+      lastTouchEnd = now;
+    }, { passive: false });
+  </script>
+</body>
+</html>
+

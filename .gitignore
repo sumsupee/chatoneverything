@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+#Logs
+chat-logs/
+
 # Build outputs
 dist/
 out/

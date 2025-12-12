@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Chat on Everything Controller</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: rgba(15, 15, 25, 0.95);
+      --bg-solid: #0f0f19;
+      --accent: #00d4aa;
+      --accent2: #7c3aed;
+      --text: #f0f0f5;
+      --text-dim: #a0a0b0;
+      --border: rgba(255, 255, 255, 0.1);
+      --danger: #ff4757;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: var(--bg-solid);
+      font-family: 'Outfit', sans-serif;
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      padding: 20px;
+      text-align: center;
+      background: linear-gradient(180deg, rgba(0, 212, 170, 0.15), transparent);
+      border-bottom: 1px solid var(--border);
+    }
+
+    header h1 {
+      margin: 0;
+      font: 600 20px 'JetBrains Mono', monospace;
+      color: var(--accent);
+    }
+
+    header p {
+      margin: 8px 0 0 0;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    /* Status indicator */
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+      font: 12px 'JetBrains Mono', monospace;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--danger);
+      transition: background 0.3s;
+    }
+
+    .status-dot.connected {
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    /* Connection panel */
+    #connect-panel {
+      padding: 24px 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    #connect-panel.hidden {
+      display: none;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font: 500 11px 'JetBrains Mono', monospace;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font: 16px 'Outfit', sans-serif;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      background: rgba(0, 212, 170, 0.05);
+    }
+
+    input[type="text"]::placeholder {
+      color: var(--text-dim);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 10px;
+      font: 600 16px 'Outfit', sans-serif;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+    }
+
+    /* Chat panel */
+    #chat-panel {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+      position: relative;
+    }
+
+    #chat-panel.visible {
+      display: flex;
+    }
+
+    /* Messages area */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+
+    .msg {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      position: relative;
+      animation: slideUp 0.3s ease;
+    }
+
+    .msg::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3px;
+      height: 100%;
+      background: linear-gradient(180deg, var(--accent), var(--accent2));
+      border-radius: 3px 0 0 3px;
+    }
+
+    .msg .user {
+      font: 600 11px 'JetBrains Mono', monospace;
+      color: var(--accent);
+      margin-right: 8px;
+    }
+
+    .msg .text {
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .msg.own {
+      background: rgba(0, 212, 170, 0.1);
+      border-color: rgba(0, 212, 170, 0.3);
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-size: 14px;
+      text-align: center;
+      padding: 20px;
+    }
+
+
+    /* Message input */
+    #input-area {
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.3);
+      border-top: 1px solid var(--border);
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    #msg-input {
+      flex: 1;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      color: var(--text);
+      font: 16px 'Outfit', sans-serif;
+      outline: none;
+    }
+
+    #msg-input:focus {
+      border-color: var(--accent);
+    }
+
+    #send-btn {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.1s;
+    }
+
+    #send-btn:active {
+      transform: scale(0.9);
+    }
+
+    #send-btn:disabled {
+      opacity: 0.5;
+    }
+
+    /* Error message */
+    .error {
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Emoji shortcuts */
+    #emoji-bar {
+      display: flex;
+      gap: 8px;
+      padding: 0 0 10px 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #emoji-bar::-webkit-scrollbar { height: 0; }
+    .emoji-btn {
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .emoji-btn:active { transform: scale(0.95); }
+
+    /* Safe area for notched phones */
+    @supports (padding-top: env(safe-area-inset-top)) {
+      header {
+        padding-top: calc(20px + env(safe-area-inset-top));
+      }
+      #input-area {
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
+      }
+    }
+
+    /* Feedback overlay */
+    #feedback-overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 50;
+    }
+    #feedback-overlay.visible { display: flex; }
+
+    .feedback-card {
+      width: 100%;
+      max-width: 440px;
+      background: rgba(15, 15, 25, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    }
+    .feedback-title {
+      font: 600 14px 'JetBrains Mono', monospace;
+      color: var(--text);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .stars {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .star-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.55);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .star-btn.filled {
+      color: #ffd166;
+      border-color: rgba(255, 209, 102, 0.5);
+      background: rgba(255, 209, 102, 0.10);
+    }
+    #feedback-text {
+      width: 100%;
+      resize: none;
+      min-height: 110px;
+      padding: 12px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      font: 14px 'Outfit', sans-serif;
+      outline: none;
+    }
+    #feedback-text:focus {
+      border-color: rgba(0, 212, 170, 0.65);
+    }
+    .feedback-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+      gap: 10px;
+      font: 12px 'JetBrains Mono', monospace;
+      color: var(--text-dim);
+    }
+    #feedback-error {
+      color: var(--danger);
+      text-align: right;
+      flex: 1;
+      min-width: 0;
+      word-break: break-word;
+    }
+    #feedback-submit {
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Chat on Everything</h1>
+      <p>Send messages to the screen</p>
+      <div class="status">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Disconnected</span>
+      </div>
+    </header>
+
+    <!-- Connection Panel -->
+    <div id="connect-panel">
+      <div class="form-group">
+        <label>Server Address</label>
+        <input type="text" id="server-input" placeholder="192.168.1.100:8765" autocomplete="off" autocapitalize="off">
+      </div>
+      <div class="form-group">
+        <label>Your Name</label>
+        <input type="text" id="name-input" placeholder="Enter your display name" autocomplete="off">
+      </div>
+      <div class="error" id="connect-error"></div>
+      <button class="btn btn-primary" id="connect-btn">Connect</button>
+    </div>
+
+    <!-- Chat Panel -->
+    <div id="chat-panel">
+      <div id="messages">
+        <div class="empty-state">
+          Send your first message! This will be visible to everyone. 
+        </div>
+      </div>
+      <div id="input-area">
+        <div id="emoji-bar" aria-label="Reactions">
+          <button class="emoji-btn" type="button" data-emoji="😂" aria-label="Laugh">😂</button>
+          <button class="emoji-btn" type="button" data-emoji="❤️" aria-label="Love">❤️</button>
+          <button class="emoji-btn" type="button" data-emoji="👍" aria-label="Thumbs up">👍</button>
+          <button class="emoji-btn" type="button" data-emoji="👎" aria-label="Boo">👎</button>
+          <button class="emoji-btn" type="button" data-emoji="😮" aria-label="Wow">😮</button>
+          <button class="emoji-btn" type="button" data-emoji="😢" aria-label="Cry">😢</button>
+          <button class="emoji-btn" type="button" id="custom-emoji-btn" data-emoji="⭐" aria-label="Custom reaction">⭐</button>
+        </div>
+        <div class="input-row">
+          <input type="text" id="msg-input" placeholder="Type a message..." autocomplete="off">
+          <button id="send-btn">➤</button>
+        </div>
+      </div>
+
+      <!-- Feedback overlay (shown when enabled by admin) -->
+      <div id="feedback-overlay" aria-hidden="true">
+        <div class="feedback-card" role="dialog" aria-modal="true" aria-label="Feedback form">
+          <div class="feedback-title">Rate the event</div>
+          <div class="stars" id="feedback-stars" role="radiogroup" aria-label="Rate the event (1 to 5 stars)">
+            <button class="star-btn" type="button" data-value="1" aria-label="1 star">★</button>
+            <button class="star-btn" type="button" data-value="2" aria-label="2 stars">★</button>
+            <button class="star-btn" type="button" data-value="3" aria-label="3 stars">★</button>
+            <button class="star-btn" type="button" data-value="4" aria-label="4 stars">★</button>
+            <button class="star-btn" type="button" data-value="5" aria-label="5 stars">★</button>
+          </div>
+          <textarea id="feedback-text" placeholder="Optional: tell us anything (max 150 words)"></textarea>
+          <div class="feedback-meta">
+            <div id="feedback-word-count">0/150 words</div>
+            <div id="feedback-error"></div>
+          </div>
+          <button class="btn btn-primary" id="feedback-submit" type="button">Submit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    // Elements
+    const connectPanel = $('connect-panel');
+    const chatPanel = $('chat-panel');
+    const serverInput = $('server-input');
+    const nameInput = $('name-input');
+    const connectBtn = $('connect-btn');
+    const connectError = $('connect-error');
+    const statusDot = $('status-dot');
+    const statusText = $('status-text');
+    const messagesContainer = $('messages');
+    const msgInput = $('msg-input');
+    const sendBtn = $('send-btn');
+    const emojiBar = $('emoji-bar');
+    const customEmojiBtn = $('custom-emoji-btn');
+    const feedbackOverlay = $('feedback-overlay');
+    const feedbackStars = $('feedback-stars');
+    const feedbackText = $('feedback-text');
+    const feedbackSubmit = $('feedback-submit');
+    const feedbackError = $('feedback-error');
+    const feedbackWordCount = $('feedback-word-count');
+
+    let ws = null;
+    let username = '';
+    let sessionCode = '';
+    let disableChatHistory = true; // Default: only show own messages
+    let customEmoji = '⭐';
+    const MAX_WORDS_PER_MESSAGE = 50;
+    const MAX_WORDS_FEEDBACK = 150;
+
+    let enableFeedbackForm = false;
+    let feedbackCycleId = 0;
+    let selectedRating = 0;
+    
+    // Detect if page is served over HTTPS (secure tunnel)
+    const isSecure = window.location.protocol === 'https:';
+
+    // Load saved values
+    serverInput.value = localStorage.getItem('livechat_server') || '';
+    nameInput.value = localStorage.getItem('livechat_name') || '';
+
+    // Auto-detect server from URL if accessed from same network
+    if (!serverInput.value && window.location.hostname !== 'localhost') {
+      if (isSecure) {
+        // For HTTPS tunnel, leave empty - user needs to enter WSS tunnel URL
+        // (HTTP and WS tunnels have different URLs with localtunnel)
+        serverInput.placeholder = 'Enter WSS tunnel URL';
+      } else {
+        serverInput.value = window.location.hostname + ':8765';
+      }
+    }
+
+    function setStatus(connected, text) {
+      statusDot.classList.toggle('connected', connected);
+      statusText.textContent = text;
+    }
+
+    function showError(msg) {
+      connectError.textContent = msg;
+    }
+
+    function clearError() {
+      connectError.textContent = '';
+    }
+
+    function connect() {
+      const server = serverInput.value.trim();
+      const name = nameInput.value.trim();
+
+      if (!server) {
+        showError('Please enter server address');
+        return;
+      }
+      if (!name) {
+        showError('Please enter your name');
+        return;
+      }
+
+      clearError();
+      connectBtn.disabled = true;
+      connectBtn.textContent = 'Connecting...';
+      setStatus(false, 'Connecting...');
+
+      // Save values
+      localStorage.setItem('livechat_server', server);
+      localStorage.setItem('livechat_name', name);
+
+      username = name;
+
+      // Create WebSocket connection
+      // Determine protocol: use wss:// for HTTPS pages or if explicitly specified
+      let wsUrl;
+      if (server.startsWith('ws://') || server.startsWith('wss://')) {
+        wsUrl = server;
+      } else if (isSecure || server.includes('.loca.lt') || server.includes('ngrok')) {
+        // Use secure WebSocket for HTTPS pages or known tunnel services
+        wsUrl = `wss://${server}`;
+      } else {
+        wsUrl = `ws://${server}`;
+      }
+      
+      try {
+        ws = new WebSocket(wsUrl);
+      } catch (e) {
+        showError('Invalid server address');
+        connectBtn.disabled = false;
+        connectBtn.textContent = 'Connect';
+        setStatus(false, 'Disconnected');
+        return;
+      }
+
+      ws.onopen = () => {
+        setStatus(true, 'Connected');
+        connectPanel.classList.add('hidden');
+        chatPanel.classList.add('visible');
+        msgInput.focus();
+        updateFeedbackOverlay();
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.type === 'session') {
+            sessionCode = data.code;
+            updateFeedbackOverlay();
+          } else if (data.type === 'blocked') {
+            // Server rejected messages from this IP.
+            setStatus(false, 'Blocked');
+            msgInput.disabled = true;
+            sendBtn.disabled = true;
+            // Show a notice in the chat panel.
+            const emptyState = messagesContainer.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+            const notice = document.createElement('div');
+            notice.className = 'empty-state';
+            notice.textContent = 'You have been blocked by the admin. You can no longer send messages from this network/IP.';
+            messagesContainer.appendChild(notice);
+          } else if (data.type === 'message') {
+            if (data.id !== undefined && data.user && data.text) {
+              const isOwn = data.user === username;
+              // If chat history is disabled for others, only show own messages
+              if (!disableChatHistory || isOwn) {
+                addMessage(data.id, data.user, data.text, isOwn);
+              }
+            }
+          } else if (data.type === 'message-deleted') {
+            if (data.msgId !== undefined) {
+              removeMessage(data.msgId);
+            }
+          } else if (data.type === 'settings-sync') {
+            if (data.settings) {
+              if (data.settings.disableChatHistory !== undefined) {
+                disableChatHistory = data.settings.disableChatHistory;
+              }
+              if (data.settings.customEmoji !== undefined) {
+                setCustomEmoji(data.settings.customEmoji);
+              }
+              if (data.settings.enableFeedbackForm !== undefined) {
+                enableFeedbackForm = !!data.settings.enableFeedbackForm;
+              }
+              if (data.settings.feedbackCycleId !== undefined) {
+                const prevCycle = feedbackCycleId;
+                feedbackCycleId = parseInt(data.settings.feedbackCycleId, 10) || 0;
+                if (feedbackCycleId !== prevCycle) {
+                  selectedRating = 0;
+                  setStarsUI(0);
+                  if (feedbackText) feedbackText.value = '';
+                  updateFeedbackWordCount();
+                }
+              }
+              updateFeedbackOverlay();
+            }
+          }
+          // Ignore other message types
+        } catch (e) {
+          console.error('Error handling message:', e);
+        }
+      };
+
+      ws.onerror = () => {
+        showError('Connection failed. Check the server address.');
+        connectBtn.disabled = false;
+        connectBtn.textContent = 'Connect';
+        setStatus(false, 'Connection failed');
+      };
+
+      ws.onclose = () => {
+        setStatus(false, 'Disconnected');
+        if (chatPanel.classList.contains('visible')) {
+          disconnect();
+        }
+        connectBtn.disabled = false;
+        connectBtn.textContent = 'Connect';
+      };
+    }
+
+    function disconnect() {
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+      chatPanel.classList.remove('visible');
+      connectPanel.classList.remove('hidden');
+      setStatus(false, 'Disconnected');
+      hideFeedbackOverlay();
+      
+      // Clear messages
+      messagesContainer.innerHTML = '<div class="empty-state">Send your first message! This will be visible to everyone.</div>';
+    }
+
+    function normalizeWhitespace(s) {
+      return String(s || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function countWords(text) {
+      const normalized = normalizeWhitespace(text);
+      if (!normalized) return 0;
+      return normalized.split(' ').filter(Boolean).length;
+    }
+
+    function truncateToMaxWords(text, maxWords) {
+      const normalized = normalizeWhitespace(text);
+      if (!normalized) return '';
+      const words = normalized.split(' ').filter(Boolean);
+      if (words.length <= maxWords) return normalized;
+      return words.slice(0, maxWords).join(' ');
+    }
+
+    function sendText(text) {
+      const clean = truncateToMaxWords(text, MAX_WORDS_PER_MESSAGE);
+      if (!clean || !ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({
+        type: 'message',
+        user: username,
+        text: clean
+      }));
+
+      msgInput.value = '';
+      msgInput.focus();
+    }
+
+    function sendMessage() {
+      sendText(msgInput.value);
+    }
+
+    function sanitizeEmoji(val) {
+      const s = String(val || '').trim().slice(0, 8);
+      return s || '⭐';
+    }
+
+    function setCustomEmoji(val) {
+      customEmoji = sanitizeEmoji(val);
+      if (customEmojiBtn) {
+        customEmojiBtn.textContent = customEmoji;
+        customEmojiBtn.dataset.emoji = customEmoji;
+      }
+    }
+
+    function getFeedbackSubmittedKey() {
+      const server = (localStorage.getItem('livechat_server') || serverInput.value || '').trim();
+      return `livechat_feedback_submitted:${server}:cycle:${feedbackCycleId || 0}`;
+    }
+
+    function setStarsUI(rating) {
+      const r = parseInt(rating, 10) || 0;
+      if (!feedbackStars) return;
+      feedbackStars.querySelectorAll('.star-btn').forEach(btn => {
+        const v = parseInt(btn.dataset.value, 10);
+        btn.classList.toggle('filled', v <= r);
+      });
+    }
+
+    function updateFeedbackWordCount() {
+      if (!feedbackWordCount || !feedbackText) return;
+      const words = countWords(feedbackText.value);
+      feedbackWordCount.textContent = `${Math.min(words, MAX_WORDS_FEEDBACK)}/${MAX_WORDS_FEEDBACK} words`;
+    }
+
+    function showFeedbackOverlay() {
+      if (!feedbackOverlay) return;
+      feedbackOverlay.classList.add('visible');
+      feedbackOverlay.setAttribute('aria-hidden', 'false');
+      // Block chat input while feedback is required
+      msgInput.disabled = true;
+      sendBtn.disabled = true;
+      if (feedbackError) feedbackError.textContent = '';
+    }
+
+    function hideFeedbackOverlay() {
+      if (!feedbackOverlay) return;
+      feedbackOverlay.classList.remove('visible');
+      feedbackOverlay.setAttribute('aria-hidden', 'true');
+      msgInput.disabled = false;
+      sendBtn.disabled = false;
+    }
+
+    function updateFeedbackOverlay() {
+      if (!chatPanel.classList.contains('visible')) return;
+      if (!enableFeedbackForm) {
+        hideFeedbackOverlay();
+        return;
+      }
+      const submitted = localStorage.getItem(getFeedbackSubmittedKey()) === '1';
+      if (submitted) {
+        hideFeedbackOverlay();
+      } else {
+        showFeedbackOverlay();
+      }
+    }
+
+    async function submitFeedback() {
+      if (!enableFeedbackForm) return;
+      if (!selectedRating || selectedRating < 1 || selectedRating > 5) {
+        if (feedbackError) feedbackError.textContent = 'Please select a rating.';
+        return;
+      }
+
+      const comment = truncateToMaxWords(feedbackText ? feedbackText.value : '', MAX_WORDS_FEEDBACK);
+      if (feedbackText && feedbackText.value !== comment) {
+        feedbackText.value = comment;
+        updateFeedbackWordCount();
+      }
+
+      if (feedbackSubmit) feedbackSubmit.disabled = true;
+      if (feedbackError) feedbackError.textContent = '';
+
+      try {
+        const resp = await fetch('/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rating: selectedRating,
+            comment,
+            cycleId: feedbackCycleId || 0,
+            sessionCode: sessionCode || ''
+          })
+        });
+
+        // If already submitted by IP, treat as done and return to chat.
+        if (resp.status === 409) {
+          localStorage.setItem(getFeedbackSubmittedKey(), '1');
+          hideFeedbackOverlay();
+          return;
+        }
+
+        if (!resp.ok) {
+          let err = 'Submit failed. Try again.';
+          try {
+            const j = await resp.json();
+            if (j && j.error) err = String(j.error);
+          } catch (_) {}
+          if (feedbackError) feedbackError.textContent = err;
+          return;
+        }
+
+        localStorage.setItem(getFeedbackSubmittedKey(), '1');
+        hideFeedbackOverlay();
+      } catch (e) {
+        if (feedbackError) feedbackError.textContent = 'Network error. Try again.';
+      } finally {
+        if (feedbackSubmit) feedbackSubmit.disabled = false;
+      }
+    }
+
+    function addMessage(id, user, text, isOwn = false) {
+      // Remove empty state if present
+      const emptyState = messagesContainer.querySelector('.empty-state');
+      if (emptyState) emptyState.remove();
+
+      const msgEl = document.createElement('div');
+      msgEl.className = 'msg' + (isOwn ? ' own' : '');
+      msgEl.dataset.msgId = id;
+      msgEl.innerHTML = `<span class="user" style="color: ${getUserColor(user)}">${escapeHtml(user)}:</span><span class="text">${escapeHtml(text)}</span>`;
+      
+      messagesContainer.appendChild(msgEl);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+      // Limit messages shown
+      while (messagesContainer.children.length > 50) {
+        messagesContainer.firstChild.remove();
+      }
+    }
+
+    function removeMessage(msgId) {
+      const msgEl = messagesContainer.querySelector(`[data-msg-id="${msgId}"]`);
+      if (msgEl) {
+        msgEl.style.transition = 'opacity 0.3s, transform 0.3s';
+        msgEl.style.opacity = '0';
+        msgEl.style.transform = 'translateX(-20px)';
+        setTimeout(() => {
+          msgEl.remove();
+          // Show empty state if no messages left
+          if (messagesContainer.querySelectorAll('.msg').length === 0) {
+            messagesContainer.innerHTML = '<div class="empty-state">Send your first message! This will be visible to everyone.</div>';
+          }
+        }, 300);
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Generate consistent color for username (same algorithm as overlay)
+    function getUserColor(username) {
+      let hash = 0;
+      for (let i = 0; i < username.length; i++) {
+        hash = username.charCodeAt(i) + ((hash << 5) - hash);
+        hash = hash & hash;
+      }
+      const hue = Math.abs(hash) % 360;
+      const saturation = 65 + (Math.abs(hash >> 8) % 20);
+      const lightness = 65 + (Math.abs(hash >> 16) % 15);
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    }
+
+    // Event listeners
+    connectBtn.onclick = connect;
+    sendBtn.onclick = sendMessage;
+
+    // Feedback listeners
+    if (feedbackStars) {
+      feedbackStars.addEventListener('click', (e) => {
+        const btn = e.target && e.target.closest ? e.target.closest('.star-btn[data-value]') : null;
+        if (!btn) return;
+        selectedRating = parseInt(btn.dataset.value, 10) || 0;
+        setStarsUI(selectedRating);
+        if (feedbackError) feedbackError.textContent = '';
+      });
+    }
+    if (feedbackText) {
+      feedbackText.addEventListener('input', () => {
+        // IMPORTANT: Don't normalize/trim while the user is typing, otherwise
+        // trailing spaces disappear and it feels like you can't type spaces.
+        // Only enforce the max word limit when exceeded.
+        const raw = String(feedbackText.value || '');
+        const words = raw.trim().split(/\s+/).filter(Boolean);
+        if (words.length > MAX_WORDS_FEEDBACK) {
+          feedbackText.value = words.slice(0, MAX_WORDS_FEEDBACK).join(' ');
+        }
+        updateFeedbackWordCount();
+      });
+      updateFeedbackWordCount();
+    }
+    if (feedbackSubmit) {
+      feedbackSubmit.onclick = submitFeedback;
+    }
+
+    // Emoji bar: auto-send on tap
+    if (emojiBar) {
+      emojiBar.addEventListener('click', (e) => {
+        const btn = e.target && e.target.closest ? e.target.closest('button[data-emoji]') : null;
+        if (!btn) return;
+        sendText(btn.dataset.emoji);
+      });
+    }
+
+    msgInput.onkeypress = (e) => {
+      if (e.key === 'Enter') sendMessage();
+    };
+
+    serverInput.onkeypress = (e) => {
+      if (e.key === 'Enter') nameInput.focus();
+    };
+
+    nameInput.onkeypress = (e) => {
+      if (e.key === 'Enter') connect();
+    };
+
+    // Prevent zoom on double tap (but not on inputs)
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        // Only prevent double-tap zoom, not single taps
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+        }
+      }
+      lastTouchEnd = now;
+    }, { passive: false });
+  </script>
+</body>
+</html>
