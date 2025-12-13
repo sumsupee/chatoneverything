@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <title>Chat on Everything Admin</title>
@@ -30,22 +30,40 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    html, body {
+    html {
       margin: 0;
       padding: 0;
       height: 100%;
+      height: 100dvh;
       background: var(--bg-solid);
       font-family: 'Outfit', sans-serif;
       color: var(--text);
       overflow: hidden;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      height: 100dvh;
+      background: var(--bg-solid);
+      font-family: 'Outfit', sans-serif;
+      color: var(--text);
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      left: 0;
     }
 
     #app {
       display: flex;
       flex-direction: column;
       height: 100%;
+      height: 100dvh;
       max-width: 500px;
       margin: 0 auto;
+      overflow: hidden;
     }
 
     /* Header */
@@ -622,6 +640,30 @@
           </div>
         </div>
 
+        <div class="toggle-row">
+          <label>Emoji Direct to Send</label>
+          <div class="toggle">
+            <input type="checkbox" id="emojiDirectSend" checked>
+            <span class="toggle-slider"></span>
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <label>Slow Mode</label>
+          <div class="toggle">
+            <input type="checkbox" id="slowModeEnabled">
+            <span class="toggle-slider"></span>
+          </div>
+        </div>
+
+        <div class="setting-group" id="slowModeSecondsGroup" style="margin-top: 12px; display: none;">
+          <label>Slow Mode Delay (seconds)</label>
+          <div class="setting-row">
+            <input type="range" id="slowModeSlider" min="1" max="30" value="3">
+            <span class="setting-value" id="slowModeValue">3</span>
+          </div>
+        </div>
+
         <div class="setting-group" style="margin-top: 18px;">
           <label>Custom Emoji Shortcut</label>
           <div class="setting-row">
@@ -688,6 +730,11 @@
     const customEmojiInput = $('customEmojiInput');
     const customEmojiSetBtn = $('customEmojiSetBtn');
     const customEmojiCurrent = $('customEmojiCurrent');
+    const emojiDirectSendToggle = $('emojiDirectSend');
+    const slowModeEnabledToggle = $('slowModeEnabled');
+    const slowModeSlider = $('slowModeSlider');
+    const slowModeValue = $('slowModeValue');
+    const slowModeSecondsGroup = $('slowModeSecondsGroup');
 
     // Blocked IPs elements
     const blockedIpsList = $('blocked-ips-list');
@@ -705,6 +752,9 @@
     let isApplyingSettings = false; // Flag to prevent feedback loop
     const DEFAULT_CUSTOM_EMOJI = '⭐';
     let customEmoji = DEFAULT_CUSTOM_EMOJI;
+    let emojiDirectSend = true; // When true, emoji buttons send directly; when false, insert into text box
+    let slowModeEnabled = false;
+    let slowModeSeconds = 3;
     
     // Detect if page is served over HTTPS (secure tunnel)
     const isSecure = window.location.protocol === 'https:';
@@ -848,6 +898,9 @@
               applySettings(data.settings);
             }
           }
+          else if (data.type === 'slow-mode') {
+            showSlowModeNotice(data.remainingSeconds || 1);
+          }
           else if (data.type === 'blocked-ips-update') {
             if (Array.isArray(data.blockedIps)) {
               blockedIps = data.blockedIps;
@@ -961,6 +1014,20 @@
       if (settings.customEmoji !== undefined) {
         setCustomEmoji(settings.customEmoji);
       }
+      if (settings.emojiDirectSend !== undefined) {
+        emojiDirectSend = !!settings.emojiDirectSend;
+        if (emojiDirectSendToggle) emojiDirectSendToggle.checked = emojiDirectSend;
+      }
+      if (settings.slowModeEnabled !== undefined) {
+        slowModeEnabled = !!settings.slowModeEnabled;
+        if (slowModeEnabledToggle) slowModeEnabledToggle.checked = slowModeEnabled;
+        if (slowModeSecondsGroup) slowModeSecondsGroup.style.display = slowModeEnabled ? 'block' : 'none';
+      }
+      if (settings.slowModeSeconds !== undefined) {
+        slowModeSeconds = parseInt(settings.slowModeSeconds, 10) || 3;
+        if (slowModeSlider) slowModeSlider.value = slowModeSeconds;
+        if (slowModeValue) slowModeValue.textContent = slowModeSeconds;
+      }
       isApplyingSettings = false;
     }
 
@@ -998,7 +1065,26 @@
       }
     }
 
-    function sendAdminText(text) {
+    let slowModeNoticeTimeout = null;
+
+    function showSlowModeNotice(seconds) {
+      // Show a temporary notice in the center of the screen
+      let notice = document.getElementById('slow-mode-notice');
+      if (!notice) {
+        notice = document.createElement('div');
+        notice.id = 'slow-mode-notice';
+        notice.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(176,138,70,0.98);color:#fff;padding:16px 28px;border-radius:14px;font:600 16px "Outfit",sans-serif;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,0.5);text-align:center;';
+        document.body.appendChild(notice);
+      }
+      notice.textContent = `Slow mode: wait ${seconds}s`;
+      notice.style.display = 'block';
+      if (slowModeNoticeTimeout) clearTimeout(slowModeNoticeTimeout);
+      slowModeNoticeTimeout = setTimeout(() => {
+        notice.style.display = 'none';
+      }, 2500);
+    }
+
+    function sendAdminText(text, shouldFocus = false) {
       const user = adminUsername.value.trim() || 'Admin';
       const clean = String(text || '').trim();
       if (!clean || !ws || ws.readyState !== WebSocket.OPEN) return;
@@ -1012,7 +1098,10 @@
       }));
 
       adminMsgInput.value = '';
-      adminMsgInput.focus();
+      // Only focus if explicitly requested (not for emoji sends)
+      if (shouldFocus) {
+        adminMsgInput.focus();
+      }
     }
 
     function sanitizeEmoji(val) {
@@ -1041,7 +1130,8 @@
     }
 
     function sendAdminMessage() {
-      sendAdminText(adminMsgInput.value);
+      const wasFocused = document.activeElement === adminMsgInput;
+      sendAdminText(adminMsgInput.value, wasFocused);
     }
 
     function escapeHtml(text) {
@@ -1050,13 +1140,57 @@
       return div.innerHTML;
     }
 
-    // Emoji bar: auto-send on tap
+    // Emoji bar: send or insert based on setting
+    // Use touchend for touch devices to prevent keyboard issues
     if (adminEmojiBar) {
-      adminEmojiBar.addEventListener('click', (e) => {
+      let adminEmojiTouchHandled = false;
+      
+      function processAdminEmoji(emoji) {
+        // Blur any active input first to dismiss keyboard
+        if (document.activeElement && document.activeElement !== document.body) {
+          document.activeElement.blur();
+        }
+        
+        if (emojiDirectSend) {
+          // Send emoji without focusing input
+          sendAdminText(emoji, false);
+        } else {
+          // Insert emoji into text box without focusing
+          if (adminMsgInput) {
+            const val = adminMsgInput.value || '';
+            adminMsgInput.value = val + emoji;
+          }
+        }
+      }
+      
+      // Handle touch devices
+      adminEmojiBar.addEventListener('touchend', (e) => {
         const btn = e.target && e.target.closest ? e.target.closest('button[data-emoji]') : null;
         if (!btn) return;
-        sendAdminText(btn.dataset.emoji);
+        e.preventDefault();
+        e.stopPropagation();
+        adminEmojiTouchHandled = true;
+        processAdminEmoji(btn.dataset.emoji);
+        // Reset flag after a short delay
+        setTimeout(() => { adminEmojiTouchHandled = false; }, 100);
+      }, { passive: false });
+      
+      // Handle mouse clicks (desktop fallback)
+      adminEmojiBar.addEventListener('click', (e) => {
+        if (adminEmojiTouchHandled) return; // Already handled by touch
+        const btn = e.target && e.target.closest ? e.target.closest('button[data-emoji]') : null;
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        processAdminEmoji(btn.dataset.emoji);
       });
+      
+      // Prevent touchstart from causing focus
+      adminEmojiBar.addEventListener('touchstart', (e) => {
+        if (e.target && e.target.closest && e.target.closest('button[data-emoji]')) {
+          e.preventDefault();
+        }
+      }, { passive: false });
     }
 
     // Custom emoji setting (confirm button)
@@ -1119,6 +1253,32 @@
       enableFeedbackFormToggle.onchange = () => {
         if (isApplyingSettings) return;
         sendSettings({ enableFeedbackForm: enableFeedbackFormToggle.checked });
+      };
+    }
+
+    if (emojiDirectSendToggle) {
+      emojiDirectSendToggle.onchange = () => {
+        if (isApplyingSettings) return;
+        emojiDirectSend = emojiDirectSendToggle.checked;
+        sendSettings({ emojiDirectSend });
+      };
+    }
+
+    if (slowModeEnabledToggle) {
+      slowModeEnabledToggle.onchange = () => {
+        if (isApplyingSettings) return;
+        slowModeEnabled = slowModeEnabledToggle.checked;
+        if (slowModeSecondsGroup) slowModeSecondsGroup.style.display = slowModeEnabled ? 'block' : 'none';
+        sendSettings({ slowModeEnabled });
+      };
+    }
+
+    if (slowModeSlider) {
+      slowModeSlider.oninput = () => {
+        if (isApplyingSettings) return;
+        slowModeSeconds = parseInt(slowModeSlider.value, 10) || 3;
+        if (slowModeValue) slowModeValue.textContent = slowModeSeconds;
+        sendSettings({ slowModeSeconds });
       };
     }
 

@@ -273,11 +273,19 @@ let currentSettings = {
     disableChatHistory: true,
     // Emoji shortcut shown on mobile + admin pages
     customEmoji: '⭐',
+    // When true, emoji buttons send directly; when false, they insert into text box
+    emojiDirectSend: true,
+    // Slow mode: require gap between messages per user
+    slowModeEnabled: false,
+    slowModeSeconds: 3,
     // Feedback form control (synced to all mobile clients)
     enableFeedbackForm: false,
     // Incremented each time feedback is enabled to create a new "event"
     feedbackCycleId: 0
 };
+
+// Track last message time per user (by IP) for slow mode
+const lastMessageTimeByIp = new Map();
 
 // Track admin clients
 const adminClients = new Set();
@@ -528,6 +536,24 @@ function createWebSocketServer() {
                         return;
                     }
 
+                    // Slow mode check (per IP, skip for admins)
+                    if (currentSettings.slowModeEnabled && ws.clientIp && !ws.isAdmin) {
+                        const nowMs = Date.now();
+                        const lastTime = lastMessageTimeByIp.get(ws.clientIp) || 0;
+                        const cooldownMs = (currentSettings.slowModeSeconds || 3) * 1000;
+                        const remaining = Math.ceil((cooldownMs - (nowMs - lastTime)) / 1000);
+                        if (nowMs - lastTime < cooldownMs) {
+                            try {
+                                ws.send(JSON.stringify({ 
+                                    type: 'slow-mode', 
+                                    remainingSeconds: remaining,
+                                    cooldownSeconds: currentSettings.slowModeSeconds || 3
+                                }));
+                            } catch (_) {}
+                            return;
+                        }
+                    }
+
                     // Enforce per-message max words across all users/clients
                     const limitedText = truncateToMaxWords(msg.text, MAX_WORDS_PER_MESSAGE);
                     if (!limitedText) return;
@@ -543,6 +569,11 @@ function createWebSocketServer() {
                         timestamp: now
                     };
                     messageIndex.set(msgId, entry);
+                    
+                    // Update last message time for slow mode
+                    if (ws.clientIp) {
+                        lastMessageTimeByIp.set(ws.clientIp, Date.now());
+                    }
                     writeChatLog({
                         type: 'message',
                         sessionCode,
@@ -637,6 +668,14 @@ function createWebSocketServer() {
                     if (msg.customEmoji !== undefined) {
                         const next = String(msg.customEmoji || '').trim().slice(0, 8);
                         currentSettings.customEmoji = next || '⭐';
+                    }
+                    if (msg.emojiDirectSend !== undefined) currentSettings.emojiDirectSend = !!msg.emojiDirectSend;
+                    if (msg.slowModeEnabled !== undefined) currentSettings.slowModeEnabled = !!msg.slowModeEnabled;
+                    if (msg.slowModeSeconds !== undefined) {
+                        const secs = parseInt(msg.slowModeSeconds, 10);
+                        if (Number.isFinite(secs) && secs >= 1 && secs <= 60) {
+                            currentSettings.slowModeSeconds = secs;
+                        }
                     }
                     if (msg.enableFeedbackForm !== undefined) {
                         setFeedbackEnabled(!!msg.enableFeedbackForm, {
@@ -822,6 +861,14 @@ ipcMain.on('settings-changed', (_, settings) => {
     if (settings.customEmoji !== undefined) {
         const next = String(settings.customEmoji || '').trim().slice(0, 8);
         currentSettings.customEmoji = next || '⭐';
+    }
+    if (settings.emojiDirectSend !== undefined) currentSettings.emojiDirectSend = !!settings.emojiDirectSend;
+    if (settings.slowModeEnabled !== undefined) currentSettings.slowModeEnabled = !!settings.slowModeEnabled;
+    if (settings.slowModeSeconds !== undefined) {
+        const secs = parseInt(settings.slowModeSeconds, 10);
+        if (Number.isFinite(secs) && secs >= 1 && secs <= 60) {
+            currentSettings.slowModeSeconds = secs;
+        }
     }
     if (settings.enableFeedbackForm !== undefined) {
         setFeedbackEnabled(!!settings.enableFeedbackForm, {

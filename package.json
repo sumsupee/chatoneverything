@@ -1,5 +1,5 @@
 {
-  "name": "livechat-overlay",
+  "name": "chatoneverything",
   "version": "1.0.0",
   "description": "A transparent overlay for Linux with click-through support and global hotkeys",
   "main": "main.js",
@@ -30,19 +30,23 @@
     "electron-builder": "^26.0.12"
   },
   "build": {
-    "appId": "com.sumedh.livechat-overlay",
-    "productName": "Chat on Everything",
+    "appId": "com.sumedh.chatoneverything",
+    "productName": "chat-on-everything",
+    "icon": "assets/title_plain.png",
     "files": [
       "main.js",
       "index.html",
-      "mobile/**/*"
+      "mobile/**/*",
+      "assets/**/*"
     ],
     "linux": {
       "target": ["AppImage", "deb"],
-      "category": "Utility"
+      "category": "Utility",
+      "icon": "assets/title_plain.png"
     },
     "win": {
-      "target": ["nsis", "portable"]
+      "target": ["nsis", "portable"],
+      "icon": "assets/title_plain.png"
     }
   }
 }

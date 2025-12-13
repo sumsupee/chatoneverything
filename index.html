@@ -578,6 +578,24 @@
           <input type="checkbox" id="enableFeedbackForm" style="margin-right:8px;accent-color:var(--accent)">
           Enable Feedback Form
         </label>
+
+        <label style="margin-top:12px">
+          <input type="checkbox" id="emojiDirectSend" checked style="margin-right:8px;accent-color:var(--accent)">
+          Emoji Direct to Send
+        </label>
+
+        <label style="margin-top:12px">
+          <input type="checkbox" id="slowModeEnabled" style="margin-right:8px;accent-color:var(--accent)">
+          Slow Mode
+        </label>
+
+        <div id="slowModeSecondsGroup" style="margin-top:12px;display:none">
+          <label>Slow Mode Delay (seconds)</label>
+          <div class="setting-row">
+            <input type="range" id="slowModeSlider" min="1" max="30" value="3">
+            <span class="value" id="slowModeValue">3</span>
+          </div>
+        </div>
       </div>
       <div id="settings-scrollbar" aria-hidden="true">
         <div id="settings-scroll-thumb"></div>
@@ -873,6 +891,41 @@
       };
     }
 
+    // Emoji direct send setting
+    const emojiDirectSendCheckbox = $('emojiDirectSend');
+    if (emojiDirectSendCheckbox) {
+      emojiDirectSendCheckbox.onchange = () => {
+        ipcRenderer.send('settings-changed', { emojiDirectSend: emojiDirectSendCheckbox.checked });
+      };
+    }
+
+    // Slow mode settings
+    const slowModeEnabledCheckbox = $('slowModeEnabled');
+    const slowModeSlider = $('slowModeSlider');
+    const slowModeValueEl = $('slowModeValue');
+    const slowModeSecondsGroup = $('slowModeSecondsGroup');
+
+    function updateSlowModeVisibility() {
+      if (slowModeSecondsGroup) {
+        slowModeSecondsGroup.style.display = slowModeEnabledCheckbox && slowModeEnabledCheckbox.checked ? 'block' : 'none';
+      }
+    }
+
+    if (slowModeEnabledCheckbox) {
+      slowModeEnabledCheckbox.onchange = () => {
+        updateSlowModeVisibility();
+        ipcRenderer.send('settings-changed', { slowModeEnabled: slowModeEnabledCheckbox.checked });
+      };
+    }
+
+    if (slowModeSlider) {
+      slowModeSlider.oninput = () => {
+        const val = parseInt(slowModeSlider.value, 10) || 3;
+        if (slowModeValueEl) slowModeValueEl.textContent = val;
+        ipcRenderer.send('settings-changed', { slowModeSeconds: val });
+      };
+    }
+
     // Trim excess messages
     function trimMessages() {
       while (messages.children.length > maxMessages) {
@@ -1008,6 +1061,18 @@
       }
       if (settings.enableFeedbackForm !== undefined && enableFeedbackFormCheckbox) {
         enableFeedbackFormCheckbox.checked = settings.enableFeedbackForm;
+      }
+      if (settings.emojiDirectSend !== undefined && emojiDirectSendCheckbox) {
+        emojiDirectSendCheckbox.checked = settings.emojiDirectSend;
+      }
+      if (settings.slowModeEnabled !== undefined && slowModeEnabledCheckbox) {
+        slowModeEnabledCheckbox.checked = settings.slowModeEnabled;
+        updateSlowModeVisibility();
+      }
+      if (settings.slowModeSeconds !== undefined) {
+        const secs = parseInt(settings.slowModeSeconds, 10) || 3;
+        if (slowModeSlider) slowModeSlider.value = secs;
+        if (slowModeValueEl) slowModeValueEl.textContent = secs;
       }
     });
 
