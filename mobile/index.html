@@ -538,6 +538,15 @@
     let slowModeEnabled = false;
     let slowModeSeconds = 3;
     const MAX_WORDS_PER_MESSAGE = 50;
+    
+    // Reconnection state
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
+    let heartbeatTimer = null;
+    let lastServerAddress = '';
+    const MAX_RECONNECT_ATTEMPTS = 50;
+    const RECONNECT_DELAY_BASE = 1000; // Start with 1 second
+    const HEARTBEAT_INTERVAL = 25000; // 25 seconds (most servers timeout at 30s)
     const MAX_WORDS_FEEDBACK = 150;
 
     let enableFeedbackForm = false;
@@ -598,6 +607,7 @@
       localStorage.setItem('livechat_name', name);
 
       username = name;
+      lastServerAddress = server;
 
       // Create WebSocket connection
       // Determine protocol: use wss:// for HTTPS pages or if explicitly specified
@@ -625,81 +635,12 @@
         setStatus(true, 'Connected');
         connectPanel.classList.add('hidden');
         chatPanel.classList.add('visible');
-        msgInput.focus();
+        reconnectAttempts = 0;
+        startHeartbeat();
         updateFeedbackOverlay();
       };
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          if (data.type === 'session') {
-            sessionCode = data.code;
-            updateFeedbackOverlay();
-          } else if (data.type === 'blocked') {
-            // Server rejected messages from this IP.
-            setStatus(false, 'Blocked');
-            msgInput.disabled = true;
-            sendBtn.disabled = true;
-            // Show a notice in the chat panel.
-            const emptyState = messagesContainer.querySelector('.empty-state');
-            if (emptyState) emptyState.remove();
-            const notice = document.createElement('div');
-            notice.className = 'empty-state';
-            notice.textContent = 'You have been blocked by the admin. You can no longer send messages from this network/IP.';
-            messagesContainer.appendChild(notice);
-          } else if (data.type === 'slow-mode') {
-            showSlowModeNotice(data.remainingSeconds || 1);
-          } else if (data.type === 'message') {
-            if (data.id !== undefined && data.user && data.text) {
-              const isOwn = data.user === username;
-              // If chat history is disabled for others, only show own messages
-              if (!disableChatHistory || isOwn) {
-                addMessage(data.id, data.user, data.text, isOwn);
-              }
-            }
-          } else if (data.type === 'message-deleted') {
-            if (data.msgId !== undefined) {
-              removeMessage(data.msgId);
-            }
-          } else if (data.type === 'settings-sync') {
-            if (data.settings) {
-              if (data.settings.disableChatHistory !== undefined) {
-                disableChatHistory = data.settings.disableChatHistory;
-              }
-              if (data.settings.customEmoji !== undefined) {
-                setCustomEmoji(data.settings.customEmoji);
-              }
-              if (data.settings.emojiDirectSend !== undefined) {
-                emojiDirectSend = !!data.settings.emojiDirectSend;
-              }
-              if (data.settings.slowModeEnabled !== undefined) {
-                slowModeEnabled = !!data.settings.slowModeEnabled;
-              }
-              if (data.settings.slowModeSeconds !== undefined) {
-                slowModeSeconds = parseInt(data.settings.slowModeSeconds, 10) || 3;
-              }
-              if (data.settings.enableFeedbackForm !== undefined) {
-                enableFeedbackForm = !!data.settings.enableFeedbackForm;
-              }
-              if (data.settings.feedbackCycleId !== undefined) {
-                const prevCycle = feedbackCycleId;
-                feedbackCycleId = parseInt(data.settings.feedbackCycleId, 10) || 0;
-                if (feedbackCycleId !== prevCycle) {
-                  selectedRating = 0;
-                  setStarsUI(0);
-                  if (feedbackText) feedbackText.value = '';
-                  updateFeedbackWordCount();
-                }
-              }
-              updateFeedbackOverlay();
-            }
-          }
-          // Ignore other message types
-        } catch (e) {
-          console.error('Error handling message:', e);
-        }
-      };
+      ws.onmessage = handleWebSocketMessage;
 
       ws.onerror = () => {
         showError('Connection failed. Check the server address.');
@@ -709,27 +650,200 @@
       };
 
       ws.onclose = () => {
+        clearHeartbeat();
         setStatus(false, 'Disconnected');
         if (chatPanel.classList.contains('visible')) {
-          disconnect();
+          // Try to reconnect instead of fully disconnecting
+          scheduleReconnect();
         }
         connectBtn.disabled = false;
         connectBtn.textContent = 'Connect';
       };
     }
+    
+    function handleWebSocketMessage(event) {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'session') {
+          sessionCode = data.code;
+          updateFeedbackOverlay();
+        } else if (data.type === 'blocked') {
+          // Server rejected messages from this IP.
+          setStatus(false, 'Blocked');
+          msgInput.disabled = true;
+          sendBtn.disabled = true;
+          // Show a notice in the chat panel.
+          const emptyState = messagesContainer.querySelector('.empty-state');
+          if (emptyState) emptyState.remove();
+          const notice = document.createElement('div');
+          notice.className = 'empty-state';
+          notice.textContent = 'You have been blocked by the admin. You can no longer send messages from this network/IP.';
+          messagesContainer.appendChild(notice);
+        } else if (data.type === 'slow-mode') {
+          showSlowModeNotice(data.remainingSeconds || 1);
+        } else if (data.type === 'message') {
+          if (data.id !== undefined && data.user && data.text) {
+            const isOwn = data.user === username;
+            // If chat history is disabled for others, only show own messages
+            if (!disableChatHistory || isOwn) {
+              addMessage(data.id, data.user, data.text, isOwn);
+            }
+          }
+        } else if (data.type === 'message-deleted') {
+          if (data.msgId !== undefined) {
+            removeMessage(data.msgId);
+          }
+        } else if (data.type === 'settings-sync') {
+          if (data.settings) {
+            if (data.settings.disableChatHistory !== undefined) {
+              disableChatHistory = data.settings.disableChatHistory;
+            }
+            if (data.settings.customEmoji !== undefined) {
+              setCustomEmoji(data.settings.customEmoji);
+            }
+            if (data.settings.emojiDirectSend !== undefined) {
+              emojiDirectSend = !!data.settings.emojiDirectSend;
+            }
+            if (data.settings.slowModeEnabled !== undefined) {
+              slowModeEnabled = !!data.settings.slowModeEnabled;
+            }
+            if (data.settings.slowModeSeconds !== undefined) {
+              slowModeSeconds = parseInt(data.settings.slowModeSeconds, 10) || 3;
+            }
+            if (data.settings.enableFeedbackForm !== undefined) {
+              enableFeedbackForm = !!data.settings.enableFeedbackForm;
+            }
+            if (data.settings.feedbackCycleId !== undefined) {
+              const prevCycle = feedbackCycleId;
+              feedbackCycleId = parseInt(data.settings.feedbackCycleId, 10) || 0;
+              if (feedbackCycleId !== prevCycle) {
+                selectedRating = 0;
+                setStarsUI(0);
+                if (feedbackText) feedbackText.value = '';
+                updateFeedbackWordCount();
+              }
+            }
+            updateFeedbackOverlay();
+          }
+        }
+        // Ignore other message types (including 'pong' responses)
+      } catch (e) {
+        console.error('Error handling message:', e);
+      }
+    }
 
-    function disconnect() {
+    function disconnect(showUI = true) {
+      clearHeartbeat();
+      clearReconnectTimer();
       if (ws) {
         ws.close();
         ws = null;
       }
-      chatPanel.classList.remove('visible');
-      connectPanel.classList.remove('hidden');
-      setStatus(false, 'Disconnected');
-      hideFeedbackOverlay();
+      if (showUI) {
+        chatPanel.classList.remove('visible');
+        connectPanel.classList.remove('hidden');
+        setStatus(false, 'Disconnected');
+        hideFeedbackOverlay();
+        // Clear messages
+        messagesContainer.innerHTML = '<div class="empty-state">Send your first message! This will be visible to everyone.</div>';
+        // Reset reconnect state
+        reconnectAttempts = 0;
+      }
+    }
+    
+    function clearReconnectTimer() {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+    }
+    
+    function clearHeartbeat() {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+    }
+    
+    function startHeartbeat() {
+      clearHeartbeat();
+      heartbeatTimer = setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          try {
+            // Send a ping message (server should ignore unknown types)
+            ws.send(JSON.stringify({ type: 'ping' }));
+          } catch (e) {
+            // Connection might be dead
+            scheduleReconnect();
+          }
+        }
+      }, HEARTBEAT_INTERVAL);
+    }
+    
+    function scheduleReconnect() {
+      if (reconnectTimer) return; // Already scheduled
+      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        setStatus(false, 'Connection lost');
+        return;
+      }
       
-      // Clear messages
-      messagesContainer.innerHTML = '<div class="empty-state">Send your first message! This will be visible to everyone.</div>';
+      // Exponential backoff with max of 10 seconds
+      const delay = Math.min(RECONNECT_DELAY_BASE * Math.pow(1.5, reconnectAttempts), 10000);
+      reconnectAttempts++;
+      
+      setStatus(false, `Reconnecting (${reconnectAttempts})...`);
+      
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        if (lastServerAddress && username) {
+          attemptReconnect();
+        }
+      }, delay);
+    }
+    
+    function attemptReconnect() {
+      if (ws && ws.readyState === WebSocket.OPEN) return; // Already connected
+      
+      const server = lastServerAddress;
+      if (!server || !username) return;
+      
+      // Create WebSocket connection
+      let wsUrl;
+      if (server.startsWith('ws://') || server.startsWith('wss://')) {
+        wsUrl = server;
+      } else if (isSecure || server.includes('.loca.lt') || server.includes('ngrok')) {
+        wsUrl = `wss://${server}`;
+      } else {
+        wsUrl = `ws://${server}`;
+      }
+      
+      try {
+        ws = new WebSocket(wsUrl);
+      } catch (e) {
+        scheduleReconnect();
+        return;
+      }
+      
+      ws.onopen = () => {
+        setStatus(true, 'Connected');
+        reconnectAttempts = 0;
+        startHeartbeat();
+        updateFeedbackOverlay();
+      };
+      
+      ws.onmessage = handleWebSocketMessage;
+      
+      ws.onerror = () => {
+        scheduleReconnect();
+      };
+      
+      ws.onclose = () => {
+        clearHeartbeat();
+        if (chatPanel.classList.contains('visible')) {
+          scheduleReconnect();
+        }
+      };
     }
 
     function normalizeWhitespace(s) {
@@ -1074,6 +1188,30 @@
       }
       lastTouchEnd = now;
     }, { passive: false });
+    
+    // Reconnect when page becomes visible (user unlocks phone / switches back to tab)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        // Check if we should be connected but aren't
+        if (chatPanel.classList.contains('visible') && lastServerAddress && username) {
+          if (!ws || ws.readyState !== WebSocket.OPEN) {
+            // Connection was lost while page was hidden, reconnect
+            reconnectAttempts = 0; // Reset attempts since user is actively returning
+            attemptReconnect();
+          }
+        }
+      }
+    });
+    
+    // Also try to reconnect on focus (some browsers don't fire visibilitychange)
+    window.addEventListener('focus', () => {
+      if (chatPanel.classList.contains('visible') && lastServerAddress && username) {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          reconnectAttempts = 0;
+          attemptReconnect();
+        }
+      }
+    });
   </script>
 </body>
 </html>

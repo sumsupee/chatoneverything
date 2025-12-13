@@ -756,6 +756,16 @@
     let slowModeEnabled = false;
     let slowModeSeconds = 3;
     
+    // Reconnection state
+    let reconnectAttempts = 0;
+    let reconnectTimer = null;
+    let heartbeatTimer = null;
+    let lastServerAddress = '';
+    let lastPassword = '';
+    const MAX_RECONNECT_ATTEMPTS = 50;
+    const RECONNECT_DELAY_BASE = 1000;
+    const HEARTBEAT_INTERVAL = 25000;
+    
     // Detect if page is served over HTTPS (secure tunnel)
     const isSecure = window.location.protocol === 'https:';
 
@@ -827,6 +837,8 @@
       setStatus(false, 'Connecting...');
 
       localStorage.setItem('livechat_server', server);
+      lastServerAddress = server;
+      lastPassword = password;
 
       // Determine protocol: use wss:// for HTTPS pages or if explicitly specified
       let wsUrl;
@@ -855,68 +867,7 @@
         ws.send(JSON.stringify({ type: 'admin-auth', password }));
       };
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          if (data.type === 'admin-auth-result') {
-            if (data.success) {
-              setStatus(true, 'Connected as Admin');
-              loginPanel.classList.add('hidden');
-              adminPanel.classList.add('visible');
-              // Apply initial settings
-              if (data.settings) {
-                applySettings(data.settings);
-              }
-              if (Array.isArray(data.blockedIps)) {
-                blockedIps = data.blockedIps;
-                renderBlockedIps();
-              }
-            } else {
-              showError('Invalid admin password');
-              ws.close();
-              loginBtn.disabled = false;
-              loginBtn.textContent = 'Login';
-              setStatus(false, 'Auth failed');
-            }
-          }
-
-          else if (data.type === 'message') {
-            if (data.id !== undefined && data.user && data.text) {
-              addMessage(data.id, data.user, data.text);
-            }
-          }
-
-          else if (data.type === 'message-deleted') {
-            if (data.msgId !== undefined) {
-              removeMessage(data.msgId);
-            }
-          }
-
-          else if (data.type === 'settings-sync') {
-            if (data.settings) {
-              applySettings(data.settings);
-            }
-          }
-          else if (data.type === 'slow-mode') {
-            showSlowModeNotice(data.remainingSeconds || 1);
-          }
-          else if (data.type === 'blocked-ips-update') {
-            if (Array.isArray(data.blockedIps)) {
-              blockedIps = data.blockedIps;
-              renderBlockedIps();
-            }
-          }
-          else if (data.type === 'admin-unblock-ip-result') {
-            if (!data.success) {
-              alert('Could not unblock IP (not blocked or invalid).');
-            }
-          }
-          // Ignore other message types like 'session'
-        } catch (e) {
-          console.error('Error handling message:', e, event.data);
-        }
-      };
+      ws.onmessage = handleWebSocketMessage;
 
       ws.onerror = () => {
         showError('Connection failed');
@@ -926,26 +877,187 @@
       };
 
       ws.onclose = () => {
+        clearHeartbeat();
         setStatus(false, 'Disconnected');
         if (adminPanel.classList.contains('visible')) {
-          disconnect();
+          // Try to reconnect instead of fully disconnecting
+          scheduleReconnect();
         }
         loginBtn.disabled = false;
         loginBtn.textContent = 'Login';
       };
     }
+    
+    function handleWebSocketMessage(event) {
+      try {
+        const data = JSON.parse(event.data);
 
-    function disconnect() {
+        if (data.type === 'admin-auth-result') {
+          if (data.success) {
+            setStatus(true, 'Connected as Admin');
+            loginPanel.classList.add('hidden');
+            adminPanel.classList.add('visible');
+            reconnectAttempts = 0;
+            startHeartbeat();
+            // Apply initial settings
+            if (data.settings) {
+              applySettings(data.settings);
+            }
+            if (Array.isArray(data.blockedIps)) {
+              blockedIps = data.blockedIps;
+              renderBlockedIps();
+            }
+          } else {
+            showError('Invalid admin password');
+            ws.close();
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Login';
+            setStatus(false, 'Auth failed');
+          }
+        }
+
+        else if (data.type === 'message') {
+          if (data.id !== undefined && data.user && data.text) {
+            addMessage(data.id, data.user, data.text);
+          }
+        }
+
+        else if (data.type === 'message-deleted') {
+          if (data.msgId !== undefined) {
+            removeMessage(data.msgId);
+          }
+        }
+
+        else if (data.type === 'settings-sync') {
+          if (data.settings) {
+            applySettings(data.settings);
+          }
+        }
+        else if (data.type === 'slow-mode') {
+          showSlowModeNotice(data.remainingSeconds || 1);
+        }
+        else if (data.type === 'blocked-ips-update') {
+          if (Array.isArray(data.blockedIps)) {
+            blockedIps = data.blockedIps;
+            renderBlockedIps();
+          }
+        }
+        else if (data.type === 'admin-unblock-ip-result') {
+          if (!data.success) {
+            alert('Could not unblock IP (not blocked or invalid).');
+          }
+        }
+        // Ignore other message types like 'session', 'pong'
+      } catch (e) {
+        console.error('Error handling message:', e, event.data);
+      }
+    }
+
+    function disconnect(showUI = true) {
+      clearHeartbeat();
+      clearReconnectTimer();
       if (ws) {
         ws.close();
         ws = null;
       }
-      adminPanel.classList.remove('visible');
-      loginPanel.classList.remove('hidden');
-      setStatus(false, 'Disconnected');
-      messages.clear();
-      renderMessages();
-      passwordInput.value = '';
+      if (showUI) {
+        adminPanel.classList.remove('visible');
+        loginPanel.classList.remove('hidden');
+        setStatus(false, 'Disconnected');
+        messages.clear();
+        renderMessages();
+        passwordInput.value = '';
+        reconnectAttempts = 0;
+      }
+    }
+    
+    function clearReconnectTimer() {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+    }
+    
+    function clearHeartbeat() {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+    }
+    
+    function startHeartbeat() {
+      clearHeartbeat();
+      heartbeatTimer = setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          try {
+            ws.send(JSON.stringify({ type: 'ping' }));
+          } catch (e) {
+            scheduleReconnect();
+          }
+        }
+      }, HEARTBEAT_INTERVAL);
+    }
+    
+    function scheduleReconnect() {
+      if (reconnectTimer) return;
+      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        setStatus(false, 'Connection lost');
+        return;
+      }
+      
+      const delay = Math.min(RECONNECT_DELAY_BASE * Math.pow(1.5, reconnectAttempts), 10000);
+      reconnectAttempts++;
+      
+      setStatus(false, `Reconnecting (${reconnectAttempts})...`);
+      
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        if (lastServerAddress && lastPassword) {
+          attemptReconnect();
+        }
+      }, delay);
+    }
+    
+    function attemptReconnect() {
+      if (ws && ws.readyState === WebSocket.OPEN) return;
+      
+      const server = lastServerAddress;
+      const password = lastPassword;
+      if (!server || !password) return;
+      
+      let wsUrl;
+      if (server.startsWith('ws://') || server.startsWith('wss://')) {
+        wsUrl = server;
+      } else if (isSecure || server.includes('.loca.lt') || server.includes('ngrok')) {
+        wsUrl = `wss://${server}`;
+      } else {
+        wsUrl = `ws://${server}`;
+      }
+      
+      try {
+        ws = new WebSocket(wsUrl);
+      } catch (e) {
+        scheduleReconnect();
+        return;
+      }
+      
+      ws.onopen = () => {
+        setStatus(false, 'Authenticating...');
+        ws.send(JSON.stringify({ type: 'admin-auth', password }));
+      };
+      
+      ws.onmessage = handleWebSocketMessage;
+      
+      ws.onerror = () => {
+        scheduleReconnect();
+      };
+      
+      ws.onclose = () => {
+        clearHeartbeat();
+        if (adminPanel.classList.contains('visible')) {
+          scheduleReconnect();
+        }
+      };
     }
 
     function addMessage(id, user, text) {
@@ -1295,6 +1407,28 @@
       }
       lastTouchEnd = now;
     }, { passive: false });
+    
+    // Reconnect when page becomes visible (user unlocks phone / switches back to tab)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        if (adminPanel.classList.contains('visible') && lastServerAddress && lastPassword) {
+          if (!ws || ws.readyState !== WebSocket.OPEN) {
+            reconnectAttempts = 0;
+            attemptReconnect();
+          }
+        }
+      }
+    });
+    
+    // Also try to reconnect on focus
+    window.addEventListener('focus', () => {
+      if (adminPanel.classList.contains('visible') && lastServerAddress && lastPassword) {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          reconnectAttempts = 0;
+          attemptReconnect();
+        }
+      }
+    });
   </script>
 </body>
 </html>
