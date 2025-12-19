@@ -1,10 +1,12 @@
-const { app, BrowserWindow, globalShortcut, ipcMain } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, nativeImage } = require('electron');
 const WebSocket = require('ws');
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
 const { spawn } = require('child_process');
+const { GoogleGenAI } = require('@google/genai');
 
 let mainWindow;
 let isPassive = false; // Start in active mode
@@ -321,8 +323,462 @@ let currentSettings = {
     // Feedback form control (synced to all mobile clients)
     enableFeedbackForm: false,
     // Incremented each time feedback is enabled to create a new "event"
-    feedbackCycleId: 0
+    feedbackCycleId: 0,
+    // @Cee AI Agent settings
+    enableCeeAgent: false,
+    ceeApiProvider: 'openai',  // 'openai' or 'gemini'
+    ceeSystemPrompt: ''  // Custom personality instructions (e.g., "be like Darth Vader")
 };
+
+// @Cee AI Agent state (not persisted, session-only)
+let ceeApiKey = '';
+const chatHistory = []; // Store recent messages for context (max 50)
+const MAX_CHAT_HISTORY = 50;
+
+// Screenshot capture via renderer (to avoid repeated permission dialogs)
+let pendingScreenshotResolve = null;
+
+// @Cee System prompt
+const CEE_SYSTEM_PROMPT = `You are Cee, a friendly and helpful AI assistant participating in a live chat.
+
+Visual Context Protocol
+1. You are provided with a screenshot of the user's screen, but only refer to it if the user's question is specifically about what they are seeing or if the answer cannot be found in the text history.
+
+2. If the conversation is general or text-based, ignore the screenshot entirely in your response.
+
+3. Avoid meta-commentary like "In the screenshot I see..." or "Looking at your screen..." Instead, just answer the question naturally.
+
+Communication Style
+1. Concise: Keep responses to 1-3 sentences. Since this is a fast-moving chat, you should be able to answer the question in a few sentences.
+
+2. Tone: Be casual and friendly, like a friend in the chat.
+
+3. Formatting: Use plain text only. Do NOT use markdown (no bold, italics, or bullet points).
+
+4. Context: Use the recent chat history to maintain the flow of conversation.`;
+
+// Capture screenshot via renderer process (uses persistent stream, avoids repeated permission dialogs)
+async function captureScreenshot() {
+    // Try to get screenshot from renderer's persistent stream
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        try {
+            const screenshot = await new Promise((resolve, reject) => {
+                pendingScreenshotResolve = resolve;
+                mainWindow.webContents.send('capture-screenshot');
+                
+                // Timeout after 5 seconds
+                setTimeout(() => {
+                    if (pendingScreenshotResolve === resolve) {
+                        pendingScreenshotResolve = null;
+                        reject(new Error('Screenshot capture timeout'));
+                    }
+                }, 5000);
+            });
+            
+            if (screenshot) {
+                console.log('[Cee] Screenshot captured via renderer');
+                return screenshot;
+            }
+        } catch (err) {
+            console.log('[Cee] Renderer screenshot failed:', err.message);
+        }
+    }
+    
+    // Fallback: On Linux, try native screenshot tools
+    if (process.platform === 'linux') {
+        try {
+            const screenshot = await captureScreenshotLinux();
+            if (screenshot) return screenshot;
+        } catch (err) {
+            console.log('[Cee] Linux native screenshot failed:', err.message);
+        }
+    }
+    
+    // Last resort: use desktopCapturer directly (may show permission dialog)
+    try {
+        console.log('[Cee] Falling back to desktopCapturer...');
+        const sources = await desktopCapturer.getSources({
+            types: ['screen'],
+            thumbnailSize: { width: 1920, height: 1080 }
+        });
+        
+        if (sources.length === 0) {
+            console.error('[Cee] No screen sources available');
+            return null;
+        }
+        
+        let image = sources[0].thumbnail;
+        const size = image.getSize();
+        if (size.width > 512) {
+            const scale = 512 / size.width;
+            image = image.resize({
+                width: Math.round(size.width * scale),
+                height: Math.round(size.height * scale),
+                quality: 'good'
+            });
+        }
+        
+        return image.toJPEG(80).toString('base64');
+    } catch (err) {
+        console.error('[Cee] desktopCapturer fallback failed:', err.message);
+        return null;
+    }
+}
+
+// Linux-specific screenshot using native tools (avoids PipeWire permission dialogs)
+async function captureScreenshotLinux() {
+    const os = require('os');
+    const tmpFile = path.join(os.tmpdir(), `cee-screenshot-${Date.now()}.png`);
+    
+    // Try different screenshot tools in order of preference
+    const tools = [
+        { cmd: 'gnome-screenshot', args: ['-f', tmpFile] },
+        { cmd: 'scrot', args: [tmpFile] },
+        { cmd: 'import', args: ['-window', 'root', tmpFile] }, // ImageMagick
+        { cmd: 'maim', args: [tmpFile] }
+    ];
+    
+    for (const tool of tools) {
+        try {
+            await new Promise((resolve, reject) => {
+                const proc = spawn(tool.cmd, tool.args, { stdio: 'ignore' });
+                proc.on('close', (code) => {
+                    if (code === 0) resolve();
+                    else reject(new Error(`${tool.cmd} exited with code ${code}`));
+                });
+                proc.on('error', reject);
+                // Timeout after 5 seconds
+                setTimeout(() => {
+                    try { proc.kill(); } catch (_) {}
+                    reject(new Error('Screenshot timeout'));
+                }, 5000);
+            });
+            
+            // Read and process the screenshot
+            if (fs.existsSync(tmpFile)) {
+                const buffer = fs.readFileSync(tmpFile);
+                let image = nativeImage.createFromBuffer(buffer);
+                
+                // Resize to max 512px width
+                const size = image.getSize();
+                if (size.width > 512) {
+                    const scale = 512 / size.width;
+                    image = image.resize({
+                        width: Math.round(size.width * scale),
+                        height: Math.round(size.height * scale),
+                        quality: 'good'
+                    });
+                }
+                
+                // Clean up temp file
+                try { fs.unlinkSync(tmpFile); } catch (_) {}
+                
+                // Convert to base64 JPEG
+                const base64 = image.toJPEG(80).toString('base64');
+                console.log(`[Cee] Screenshot captured using ${tool.cmd}`);
+                return base64;
+            }
+        } catch (err) {
+            // Try next tool
+            continue;
+        }
+    }
+    
+    throw new Error('No screenshot tool available');
+}
+
+// Call OpenAI API with vision
+async function callOpenAI(question, screenshotBase64) {
+    console.log('[Cee] Calling OpenAI API...');
+    console.log('[Cee] API key prefix:', ceeApiKey?.substring(0, 7) || 'NOT SET');
+    
+    return new Promise((resolve, reject) => {
+        // Build chat history context (last 20 messages for context)
+        const recentHistory = chatHistory.slice(-20).map(m => `${m.user}: ${m.text}`).join('\n');
+        console.log('[Cee] Recent history for context:', recentHistory.length, 'chars');
+        
+        // Build system prompt with custom instructions if set
+        let systemPrompt = CEE_SYSTEM_PROMPT;
+        if (currentSettings.ceeSystemPrompt) {
+            systemPrompt += '\n\nAdditional instructions: ' + currentSettings.ceeSystemPrompt;
+            console.log('[Cee] Using custom instructions:', currentSettings.ceeSystemPrompt);
+        }
+        
+        // Build messages array
+        const messages = [
+            { role: 'system', content: systemPrompt },
+        ];
+        
+        // Add chat history as context
+        if (recentHistory) {
+            messages.push({
+                role: 'user',
+                content: `Here's the recent chat history for context:\n${recentHistory}`
+            });
+            messages.push({
+                role: 'assistant',
+                content: 'Got it, I have the chat context. What would you like to know?'
+            });
+        }
+        
+        // Build the user message with image
+        const userContent = [];
+        userContent.push({ type: 'text', text: question });
+        
+        if (screenshotBase64) {
+            userContent.push({
+                type: 'image_url',
+                image_url: {
+                    url: `data:image/jpeg;base64,${screenshotBase64}`,
+                    detail: 'low' // Use low detail to reduce tokens
+                }
+            });
+        }
+        
+        messages.push({ role: 'user', content: userContent });
+        
+        const requestBody = JSON.stringify({
+            model: 'gpt-4o',
+            messages: messages,
+            max_tokens: 150,
+            temperature: 0.7
+        });
+        
+        const options = {
+            hostname: 'api.openai.com',
+            port: 443,
+            path: '/v1/chat/completions',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${ceeApiKey}`,
+                'Content-Length': Buffer.byteLength(requestBody)
+            }
+        };
+        
+        const req = https.request(options, (res) => {
+            console.log('[Cee] OpenAI response status:', res.statusCode);
+            let data = '';
+            res.on('data', chunk => { data += chunk; });
+            res.on('end', () => {
+                console.log('[Cee] OpenAI raw response length:', data.length);
+                try {
+                    const json = JSON.parse(data);
+                    if (json.error) {
+                        console.error('[Cee] OpenAI API error:', json.error);
+                        reject(new Error(json.error.message || 'OpenAI API error'));
+                        return;
+                    }
+                    const response = json.choices?.[0]?.message?.content?.trim();
+                    if (response) {
+                        console.log('[Cee] OpenAI response:', response);
+                        resolve(response);
+                    } else {
+                        console.error('[Cee] No response content in:', JSON.stringify(json).substring(0, 200));
+                        reject(new Error('No response from OpenAI'));
+                    }
+                } catch (e) {
+                    console.error('[Cee] Failed to parse response:', data.substring(0, 500));
+                    reject(new Error('Failed to parse OpenAI response'));
+                }
+            });
+        });
+        
+        req.on('error', (e) => {
+            console.error('[Cee] Request error:', e.message);
+            reject(new Error(`OpenAI request failed: ${e.message}`));
+        });
+        
+        req.setTimeout(30000, () => {
+            req.destroy();
+            reject(new Error('OpenAI request timed out'));
+        });
+        
+        req.write(requestBody);
+        req.end();
+    });
+}
+
+// Call Gemini API with vision using Google GenAI SDK
+async function callGemini(question, screenshotBase64) {
+    console.log('[Cee] Calling Gemini API...');
+    console.log('[Cee] API key prefix:', ceeApiKey?.substring(0, 7) || 'NOT SET');
+    
+    // Build chat history context (last 20 messages for context)
+    const recentHistory = chatHistory.slice(-20).map(m => `${m.user}: ${m.text}`).join('\n');
+    console.log('[Cee] Recent history for context:', recentHistory.length, 'chars');
+    
+    // Build system prompt with custom instructions if set
+    let systemPrompt = CEE_SYSTEM_PROMPT;
+    if (currentSettings.ceeSystemPrompt) {
+        systemPrompt += '\n\nAdditional instructions: ' + currentSettings.ceeSystemPrompt;
+        console.log('[Cee] Using custom instructions:', currentSettings.ceeSystemPrompt);
+    }
+    
+    // Build the full prompt text
+    let fullPrompt = systemPrompt + '\n\n';
+    if (recentHistory) {
+        fullPrompt += `Recent chat history for context:\n${recentHistory}\n\n`;
+    }
+    fullPrompt += `User question: ${question}`;
+    
+    try {
+        // Initialize the Google GenAI client
+        const ai = new GoogleGenAI({ apiKey: ceeApiKey });
+        
+        // Build contents array
+        const contents = [];
+        contents.push({ text: fullPrompt });
+        
+        if (screenshotBase64) {
+            contents.push({
+                inlineData: {
+                    mimeType: 'image/jpeg',
+                    data: screenshotBase64
+                }
+            });
+        }
+        
+        // Generate content
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: contents,
+            config: {
+                maxOutputTokens: 500,
+                temperature: 0.7
+            }
+        });
+        
+        const responseText = response.text?.trim();
+        if (responseText) {
+            console.log('[Cee] Gemini response:', responseText);
+            return responseText;
+        } else {
+            console.error('[Cee] No response text from Gemini');
+            throw new Error('No response from Gemini');
+        }
+    } catch (error) {
+        console.error('[Cee] Gemini API error:', error.message);
+        throw new Error(error.message || 'Gemini API error');
+    }
+}
+
+// Process @Cee request asynchronously
+async function processCeeRequest(askedBy, question) {
+    console.log(`[Cee] === Processing @Cee request ===`);
+    console.log(`[Cee] Asked by: ${askedBy}`);
+    console.log(`[Cee] Question: ${question}`);
+    console.log(`[Cee] Chat history length: ${chatHistory.length}`);
+    
+    try {
+        // Capture screenshot
+        console.log('[Cee] Capturing screenshot...');
+        const screenshot = await captureScreenshot();
+        console.log('[Cee] Screenshot captured:', screenshot ? `${screenshot.length} chars base64` : 'FAILED');
+        
+        // Call appropriate API based on provider setting
+        const provider = currentSettings.ceeApiProvider || 'openai';
+        console.log('[Cee] Using provider:', provider);
+        let response;
+        if (provider === 'gemini') {
+            response = await callGemini(question, screenshot);
+        } else {
+            response = await callOpenAI(question, screenshot);
+        }
+        
+        // Broadcast Cee's response as a message
+        const msgId = ++messageIdCounter;
+        const now = new Date().toISOString();
+        const ceeUser = 'Cee';
+        
+        const entry = {
+            id: msgId,
+            user: ceeUser,
+            text: response,
+            ip: null,
+            timestamp: now
+        };
+        messageIndex.set(msgId, entry);
+        
+        // Add to chat history
+        chatHistory.push({ user: ceeUser, text: response, timestamp: now });
+        while (chatHistory.length > MAX_CHAT_HISTORY) {
+            chatHistory.shift();
+        }
+        
+        writeChatLog({
+            type: 'message',
+            sessionCode,
+            ...entry,
+            ceeResponse: true,
+            askedBy: askedBy,
+            question: question
+        });
+        
+        // Forward to overlay
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('new-message', { id: msgId, user: ceeUser, text: response });
+        }
+        
+        // Broadcast to all clients
+        if (wss) {
+            wss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    try {
+                        client.send(JSON.stringify({ type: 'message', id: msgId, user: ceeUser, text: response }));
+                    } catch (err) {
+                        console.error('Error sending Cee response to client:', err);
+                    }
+                }
+            });
+        }
+        
+        console.log(`Cee responded: ${response}`);
+    } catch (err) {
+        console.error('Cee request failed:', err.message);
+        
+        // Send error message as Cee
+        const msgId = ++messageIdCounter;
+        const now = new Date().toISOString();
+        const errorText = `Sorry, I couldn't process that request. ${err.message}`;
+        
+        const entry = {
+            id: msgId,
+            user: 'Cee',
+            text: errorText,
+            ip: null,
+            timestamp: now
+        };
+        messageIndex.set(msgId, entry);
+        
+        writeChatLog({
+            type: 'message',
+            sessionCode,
+            ...entry,
+            ceeError: true,
+            askedBy: askedBy,
+            question: question
+        });
+        
+        // Forward to overlay
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('new-message', { id: msgId, user: 'Cee', text: errorText });
+        }
+        
+        // Broadcast error to all clients
+        if (wss) {
+            wss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    try {
+                        client.send(JSON.stringify({ type: 'message', id: msgId, user: 'Cee', text: errorText }));
+                    } catch (e) {
+                        console.error('Error sending Cee error to client:', e);
+                    }
+                }
+            });
+        }
+    }
+}
 
 // Track last message time per user (by IP) for slow mode
 const lastMessageTimeByIp = new Map();
@@ -347,7 +803,7 @@ function createWindow() {
         skipTaskbar: true,
         hasShadow: false,
         resizable: false,
-        focusable: false,
+        focusable: true,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false
@@ -379,6 +835,12 @@ function toggleMode() {
     
     mainWindow.webContents.send('mode-change', isPassive ? 'passive' : 'active');
     console.log(`Mode: ${isPassive ? 'Passive' : 'Active'}`);
+    
+    // Broadcast mode state to all admin clients
+    broadcastToAdmins({
+        type: 'mode-state',
+        mode: isPassive ? 'passive' : 'active'
+    });
 }
 
 // Generate join page HTML (shown when no session code provided)
@@ -790,7 +1252,7 @@ function createWebSocketServer() {
                             const urls = getUrls();
                             ws.send(JSON.stringify({
                                 type: 'settings-sync',
-                                settings: currentSettings,
+                                settings: { ...currentSettings, ceeApiKeySet: !!ceeApiKey },
                                 mobileUrl: urls.mobileUrl,
                                 wsUrl: urls.wsUrl
                             }));
@@ -826,6 +1288,13 @@ function createWebSocketServer() {
                         settings: success ? currentSettings : null,
                         blockedIps: success ? Array.from(blockedIps) : null
                     }));
+                    // Send current mode state to admin client
+                    if (success) {
+                        ws.send(JSON.stringify({
+                            type: 'mode-state',
+                            mode: isPassive ? 'passive' : 'active'
+                        }));
+                    }
                     if (!success) {
                         // Close connection after failed admin auth
                         clearTimeout(validationTimeout);
@@ -896,6 +1365,12 @@ function createWebSocketServer() {
                     };
                     messageIndex.set(msgId, entry);
                     
+                    // Add to chat history for @Cee context
+                    chatHistory.push({ user: msg.user, text: msg.text, timestamp: now });
+                    while (chatHistory.length > MAX_CHAT_HISTORY) {
+                        chatHistory.shift();
+                    }
+                    
                     // Update last message time for slow mode
                     if (ws.clientIp) {
                         lastMessageTimeByIp.set(ws.clientIp, Date.now());
@@ -921,6 +1396,28 @@ function createWebSocketServer() {
                             }
                         }
                     });
+                    
+                    // Check for @cee mention and process AI request
+                    const ceeMatch = msg.text.match(/@cee\s+(.+)/i);
+                    if (ceeMatch) {
+                        console.log('[Cee] @cee mention detected in message:', msg.text);
+                        console.log('[Cee] enableCeeAgent:', currentSettings.enableCeeAgent);
+                        console.log('[Cee] ceeApiKey set:', !!ceeApiKey, 'length:', ceeApiKey?.length || 0);
+                        
+                        if (!currentSettings.enableCeeAgent) {
+                            console.log('[Cee] Agent is disabled, ignoring');
+                        } else if (!ceeApiKey) {
+                            console.log('[Cee] No API key set, ignoring');
+                        } else {
+                            const question = ceeMatch[1].trim();
+                            if (question) {
+                                console.log('[Cee] Processing request with question:', question);
+                                processCeeRequest(msg.user, question);
+                            } else {
+                                console.log('[Cee] Empty question, ignoring');
+                            }
+                        }
+                    }
                 }
                 
                 
@@ -995,20 +1492,43 @@ function createWebSocketServer() {
                             via: 'mobile-admin'
                         });
                     }
-                    
-                    // Send to overlay
-                    if (mainWindow && !mainWindow.isDestroyed()) {
-                        mainWindow.webContents.send('settings-update', currentSettings);
+                    // @Cee Agent settings
+                    if (msg.enableCeeAgent !== undefined) {
+                        currentSettings.enableCeeAgent = !!msg.enableCeeAgent;
+                        console.log(`[Cee] Agent ${currentSettings.enableCeeAgent ? 'ENABLED' : 'DISABLED'}`);
+                    }
+                    if (msg.ceeApiProvider !== undefined) {
+                        const provider = String(msg.ceeApiProvider || '').toLowerCase();
+                        if (provider === 'openai' || provider === 'gemini') {
+                            currentSettings.ceeApiProvider = provider;
+                            console.log(`[Cee] API provider set to: ${provider}`);
+                        }
+                    }
+                    if (msg.ceeApiKey !== undefined) {
+                        ceeApiKey = String(msg.ceeApiKey || '').trim();
+                        console.log(`[Cee] API key ${ceeApiKey ? 'SET (length: ' + ceeApiKey.length + ', prefix: ' + ceeApiKey.substring(0, 7) + ')' : 'CLEARED'}`);
+                    }
+                    if (msg.ceeSystemPrompt !== undefined) {
+                        currentSettings.ceeSystemPrompt = String(msg.ceeSystemPrompt || '').trim().substring(0, 300);
+                        console.log(`[Cee] Custom prompt ${currentSettings.ceeSystemPrompt ? 'SET: ' + currentSettings.ceeSystemPrompt.substring(0, 50) : 'CLEARED'}`);
                     }
                     
+                    // Send to overlay (include API key status)
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('settings-update', {
+                            ...currentSettings,
+                            ceeApiKeySet: !!ceeApiKey
+                        });
+                    }
+
                     // Broadcast settings to ALL clients (for mobile link display)
                     const urls = getUrls();
                     wss.clients.forEach(client => {
                         if (client.readyState === WebSocket.OPEN) {
                             try {
-                                client.send(JSON.stringify({ 
-                                    type: 'settings-sync', 
-                                    settings: currentSettings,
+                                client.send(JSON.stringify({
+                                    type: 'settings-sync',
+                                    settings: { ...currentSettings, ceeApiKeySet: !!ceeApiKey },
                                     mobileUrl: urls.mobileUrl,
                                     wsUrl: urls.wsUrl
                                 }));
@@ -1036,6 +1556,16 @@ function createWebSocketServer() {
                         triggeredByAdminIp: ws.clientIp || null
                     });
                     ws.send(JSON.stringify({ type: 'admin-unblock-ip-result', success: ok, ip: normalizeIp(msg.ip) }));
+                }
+
+                // Admin: toggle passive/active mode
+                else if (msg.type === 'admin-toggle-mode' && ws.isAdmin) {
+                    toggleMode();
+                    // Broadcast mode state to all admin clients
+                    broadcastToAdmins({
+                        type: 'mode-state',
+                        mode: isPassive ? 'passive' : 'active'
+                    });
                 }
             } catch (e) {
                 console.error('Invalid message:', e);
@@ -1162,7 +1692,7 @@ function broadcastTunnelUrls() {
             try {
                 client.send(JSON.stringify({ 
                     type: 'settings-sync', 
-                    settings: currentSettings,
+                    settings: { ...currentSettings, ceeApiKeySet: !!ceeApiKey },
                     mobileUrl: urls.mobileUrl,
                     wsUrl: urls.wsUrl
                 }));
@@ -1249,6 +1779,32 @@ ipcMain.on('close-app', () => app.quit());
 ipcMain.on('enter-passive', () => {
     if (!isPassive) toggleMode();
 });
+ipcMain.on('request-focus', () => {
+    if (mainWindow && !mainWindow.isDestroyed() && !isPassive) {
+        mainWindow.focus();
+    }
+});
+
+// Screen capture IPC handlers
+ipcMain.handle('get-screen-sources', async () => {
+    try {
+        const sources = await desktopCapturer.getSources({
+            types: ['screen'],
+            thumbnailSize: { width: 1, height: 1 }
+        });
+        return sources.map(s => ({ id: s.id, name: s.name }));
+    } catch (err) {
+        console.error('[Cee] Failed to get screen sources:', err.message);
+        return [];
+    }
+});
+
+ipcMain.on('screenshot-result', (event, screenshot) => {
+    if (pendingScreenshotResolve) {
+        pendingScreenshotResolve(screenshot);
+        pendingScreenshotResolve = null;
+    }
+});
 
 ipcMain.handle('get-session-info', () => {
     const localIP = getLocalIP();
@@ -1295,15 +1851,43 @@ ipcMain.on('settings-changed', (_, settings) => {
             via: 'overlay-settings'
         });
     }
+    // @Cee Agent settings
+    if (settings.enableCeeAgent !== undefined) {
+        currentSettings.enableCeeAgent = !!settings.enableCeeAgent;
+        console.log(`[Cee] Agent ${currentSettings.enableCeeAgent ? 'ENABLED' : 'DISABLED'} (via IPC)`);
+    }
+    if (settings.ceeApiProvider !== undefined) {
+        const provider = String(settings.ceeApiProvider || '').toLowerCase();
+        if (provider === 'openai' || provider === 'gemini') {
+            currentSettings.ceeApiProvider = provider;
+            console.log(`[Cee] API provider set to: ${provider} (via IPC)`);
+        }
+    }
+    if (settings.ceeApiKey !== undefined) {
+        ceeApiKey = String(settings.ceeApiKey || '').trim();
+        console.log(`[Cee] API key ${ceeApiKey ? 'SET (length: ' + ceeApiKey.length + ', prefix: ' + ceeApiKey.substring(0, 7) + ')' : 'CLEARED'} (via IPC)`);
+    }
+    if (settings.ceeSystemPrompt !== undefined) {
+        currentSettings.ceeSystemPrompt = String(settings.ceeSystemPrompt || '').trim().substring(0, 300);
+        console.log(`[Cee] Custom prompt ${currentSettings.ceeSystemPrompt ? 'SET: ' + currentSettings.ceeSystemPrompt.substring(0, 50) : 'CLEARED'} (via IPC)`);
+    }
     
+    // Send API key status back to overlay
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('settings-update', {
+            ...currentSettings,
+            ceeApiKeySet: !!ceeApiKey
+        });
+    }
+
     // Broadcast settings to ALL clients
     const urls = getUrls();
     wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
             try {
-                client.send(JSON.stringify({ 
-                    type: 'settings-sync', 
-                    settings: currentSettings,
+                client.send(JSON.stringify({
+                    type: 'settings-sync',
+                    settings: { ...currentSettings, ceeApiKeySet: !!ceeApiKey },
                     mobileUrl: urls.mobileUrl,
                     wsUrl: urls.wsUrl
                 }));

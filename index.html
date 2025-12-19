@@ -16,6 +16,25 @@
 
     * { box-sizing: border-box; user-select: none; }
 
+    /* Dark mode select dropdown */
+    select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a0a0b0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px !important;
+    }
+    select option {
+      background: #1a1a2e;
+      color: #f0f0f5;
+      padding: 10px;
+    }
+    select option:hover, select option:focus {
+      background: #2a2a4e;
+    }
+
     html, body {
       margin: 0; padding: 0; height: 100%;
       overflow: hidden; background: transparent;
@@ -350,6 +369,7 @@
       position: relative;
       flex: 1;
       min-width: 0;
+      pointer-events: auto;
     }
     #settings #admin-password {
       width: 100%;
@@ -411,6 +431,100 @@
     }
     #settings #admin-password-toggle:hover,
     #settings #admin-password-copy-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    /* API key input styling */
+    #settings #cee-api-key {
+      width: 100%;
+      padding: 10px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.06);
+      font: 600 11px 'JetBrains Mono', monospace;
+      color: var(--accent);
+      outline: none;
+      user-select: text !important;
+      -webkit-user-select: text !important;
+      -webkit-user-modify: read-write-plaintext-only;
+      pointer-events: auto !important;
+      padding-right: 34px;
+      cursor: text;
+    }
+    #settings #cee-api-key:focus {
+      border-color: rgba(0, 212, 170, 0.5);
+      background: rgba(255, 255, 255, 0.08);
+    }
+    #settings #cee-api-key::placeholder {
+      color: var(--text-dim);
+      font-weight: 400;
+    }
+    #settings #cee-api-key-copy {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.20);
+      color: rgba(255, 255, 255, 0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      font-size: 14px;
+      z-index: 2;
+    }
+    #settings #cee-api-key-copy:hover {
+      border-color: rgba(255, 255, 255, 0.18);
+      color: rgba(255, 255, 255, 0.85);
+    }
+    #settings #cee-api-key-copy.show {
+      display: inline-flex;
+    }
+    #settings #cee-api-key-toggle {
+      flex: 0 0 auto;
+      padding: 10px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.10);
+      color: var(--text);
+      font: 600 11px 'JetBrains Mono', monospace;
+      cursor: pointer;
+    }
+    /* Custom instructions textarea styling */
+    #settings #ceeSystemPrompt {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.06);
+      font: 13px 'Outfit', sans-serif;
+      color: var(--text);
+      outline: none;
+      resize: vertical;
+      min-height: 50px;
+      max-height: 120px;
+      scrollbar-width: none; /* Firefox - hide native scrollbar */
+    }
+    #settings #ceeSystemPrompt:focus {
+      border-color: rgba(255, 255, 255, 0.28);
+      background: rgba(255, 255, 255, 0.08);
+    }
+    #settings #ceeSystemPrompt::placeholder {
+      color: var(--text-dim);
+    }
+    /* Hide native scrollbar completely - same as settings panel */
+    #settings #ceeSystemPrompt::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
+    }
+    #settings #cee-api-key-toggle:hover {
       background: rgba(255, 255, 255, 0.16);
     }
 
@@ -607,6 +721,39 @@
           <div class="setting-row">
             <input type="range" id="slowModeSlider" min="1" max="30" value="3">
             <span class="value" id="slowModeValue">3</span>
+          </div>
+        </div>
+
+        <!-- @Cee AI Agent Settings -->
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+          <div style="font:500 12px 'Outfit',sans-serif;color:var(--accent);margin:4px 0 12px 0;">
+            @Cee AI Agent
+          </div>
+          <label style="margin-top:0">
+            <input type="checkbox" id="enableCeeAgent" style="margin-right:8px;accent-color:var(--accent)">
+            Enable @Cee Agent
+          </label>
+          
+          <div id="ceeApiKeyGroup" style="margin-top:12px;display:none">
+            <label>API Provider</label>
+            <select id="ceeApiProvider" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:#1a1a2e;color:var(--text);font:500 13px 'Outfit',sans-serif;outline:none;margin-bottom:12px;cursor:pointer">
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+            </select>
+            <label id="ceeApiKeyLabel">OpenAI API Key</label>
+            <div class="password-row">
+              <div class="password-input-wrap">
+                <input id="cee-api-key" type="password" value="" placeholder="sk-..." aria-label="API Key" tabindex="0">
+                <button id="cee-api-key-copy" type="button" aria-label="Copy API key" title="Copy">📋</button>
+              </div>
+              <button id="cee-api-key-toggle" type="button" aria-label="Show API key">Show</button>
+            </div>
+            <div id="ceeApiKeyStatus" style="font:600 11px 'JetBrains Mono',monospace;color:var(--danger);margin:4px 0 8px 0;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border)">
+              Not Set
+            </div>
+            <label style="margin-top:12px">Custom Instructions (optional)</label>
+            <textarea id="ceeSystemPrompt" rows="2" maxlength="300" placeholder="e.g., be like Darth Vader, answer in 10 words only, talk like Yoda..."></textarea>
+            <div style="font:11px 'Outfit',sans-serif;color:var(--text-dim);margin-top:4px">Customize Cee's personality or response style</div>
           </div>
         </div>
       </div>
@@ -954,6 +1101,326 @@
       };
     }
 
+    // @Cee Agent settings
+    const enableCeeAgentCheckbox = $('enableCeeAgent');
+    const ceeApiKeyGroup = $('ceeApiKeyGroup');
+    const ceeApiKeyStatus = $('ceeApiKeyStatus');
+    const ceeApiProviderSelect = $('ceeApiProvider');
+    const ceeApiKeyLabel = $('ceeApiKeyLabel');
+
+    function updateCeeApiKeyVisibility() {
+      if (ceeApiKeyGroup) {
+        ceeApiKeyGroup.style.display = enableCeeAgentCheckbox && enableCeeAgentCheckbox.checked ? 'block' : 'none';
+      }
+    }
+
+    function updateCeeApiKeyStatus(isSet) {
+      if (ceeApiKeyStatus) {
+        if (isSet) {
+          ceeApiKeyStatus.textContent = 'API Key Set ✓';
+          ceeApiKeyStatus.style.color = 'var(--accent)';
+        } else {
+          ceeApiKeyStatus.textContent = 'Not Set';
+          ceeApiKeyStatus.style.color = 'var(--danger)';
+        }
+      }
+    }
+
+    function updateCeeApiProviderUI(provider) {
+      const p = provider || 'openai';
+      if (ceeApiKeyLabel) {
+        ceeApiKeyLabel.textContent = p === 'gemini' ? 'Gemini API Key' : 'OpenAI API Key';
+      }
+      if (ceeApiKeyInput) {
+        ceeApiKeyInput.placeholder = p === 'gemini' ? 'AIza...' : 'sk-...';
+      }
+      if (ceeApiProviderSelect) {
+        ceeApiProviderSelect.value = p;
+      }
+    }
+
+    // Provider dropdown handler
+    if (ceeApiProviderSelect) {
+      ceeApiProviderSelect.onchange = () => {
+        const provider = ceeApiProviderSelect.value;
+        updateCeeApiProviderUI(provider);
+        // Clear the API key when switching providers
+        if (ceeApiKeyInput) {
+          ceeApiKeyInput.value = '';
+          updateCeeApiKeyStatus(false);
+        }
+        ipcRenderer.send('settings-changed', { ceeApiProvider: provider, ceeApiKey: '' });
+      };
+    }
+
+    // Persistent screen capture stream (for @Cee - avoids repeated permission dialogs)
+    let screenStream = null;
+    let screenVideo = null;
+    let screenCanvas = null;
+
+    async function initScreenCapture() {
+      if (screenStream) {
+        console.log('[Cee] Screen capture already initialized');
+        return true;
+      }
+
+      try {
+        // Get screen sources
+        const sources = await ipcRenderer.invoke('get-screen-sources');
+        if (!sources || sources.length === 0) {
+          console.error('[Cee] No screen sources available');
+          return false;
+        }
+
+        const sourceId = sources[0].id;
+        console.log('[Cee] Requesting screen capture for source:', sourceId);
+
+        // Request persistent stream - this shows permission dialog ONCE
+        screenStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            mandatory: {
+              chromeMediaSource: 'desktop',
+              chromeMediaSourceId: sourceId,
+              maxWidth: 1920,
+              maxHeight: 1080
+            }
+          }
+        });
+
+        // Create hidden video element to capture frames
+        screenVideo = document.createElement('video');
+        screenVideo.srcObject = screenStream;
+        screenVideo.style.display = 'none';
+        document.body.appendChild(screenVideo);
+        await screenVideo.play();
+
+        // Create canvas for frame capture
+        screenCanvas = document.createElement('canvas');
+
+        console.log('[Cee] Screen capture initialized successfully');
+        return true;
+      } catch (err) {
+        console.error('[Cee] Failed to initialize screen capture:', err.message);
+        return false;
+      }
+    }
+
+    function stopScreenCapture() {
+      if (screenStream) {
+        screenStream.getTracks().forEach(track => track.stop());
+        screenStream = null;
+      }
+      if (screenVideo) {
+        screenVideo.remove();
+        screenVideo = null;
+      }
+      screenCanvas = null;
+      console.log('[Cee] Screen capture stopped');
+    }
+
+    async function captureScreenFrame() {
+      if (!screenStream || !screenVideo || !screenCanvas) {
+        console.log('[Cee] Screen capture not initialized, initializing...');
+        const ok = await initScreenCapture();
+        if (!ok) return null;
+      }
+
+      try {
+        // Capture frame from video
+        const width = screenVideo.videoWidth;
+        const height = screenVideo.videoHeight;
+        
+        // Resize to max 512px width
+        let targetWidth = width;
+        let targetHeight = height;
+        if (width > 512) {
+          const scale = 512 / width;
+          targetWidth = Math.round(width * scale);
+          targetHeight = Math.round(height * scale);
+        }
+
+        screenCanvas.width = targetWidth;
+        screenCanvas.height = targetHeight;
+        const ctx = screenCanvas.getContext('2d');
+        ctx.drawImage(screenVideo, 0, 0, targetWidth, targetHeight);
+
+        // Convert to base64 JPEG
+        const dataUrl = screenCanvas.toDataURL('image/jpeg', 0.8);
+        const base64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
+        return base64;
+      } catch (err) {
+        console.error('[Cee] Failed to capture frame:', err.message);
+        return null;
+      }
+    }
+
+    // Handle screenshot request from main process
+    ipcRenderer.on('capture-screenshot', async (event) => {
+      const screenshot = await captureScreenFrame();
+      ipcRenderer.send('screenshot-result', screenshot);
+    });
+
+    if (enableCeeAgentCheckbox) {
+      enableCeeAgentCheckbox.onchange = async () => {
+        updateCeeApiKeyVisibility();
+        
+        // Initialize or stop screen capture based on toggle
+        if (enableCeeAgentCheckbox.checked) {
+          const ok = await initScreenCapture();
+          if (!ok) {
+            // If screen capture fails, still allow enabling (will try again on first use)
+            console.log('[Cee] Screen capture init failed, will retry on first use');
+          }
+        } else {
+          stopScreenCapture();
+        }
+        
+        ipcRenderer.send('settings-changed', { enableCeeAgent: enableCeeAgentCheckbox.checked });
+      };
+    }
+
+    // API key input handling
+    const ceeApiKeyInput = $('cee-api-key');
+    const ceeApiKeyToggle = $('cee-api-key-toggle');
+    const ceeApiKeyCopy = $('cee-api-key-copy');
+    let ceeApiKeyVisible = false;
+
+    function setCeeApiKeyVisible(visible) {
+      ceeApiKeyVisible = !!visible;
+      if (!ceeApiKeyInput || !ceeApiKeyToggle) return;
+      ceeApiKeyInput.type = ceeApiKeyVisible ? 'text' : 'password';
+      ceeApiKeyToggle.textContent = ceeApiKeyVisible ? 'Hide' : 'Show';
+      ceeApiKeyToggle.setAttribute('aria-label', ceeApiKeyVisible ? 'Hide API key' : 'Show API key');
+      if (ceeApiKeyCopy) ceeApiKeyCopy.classList.toggle('show', ceeApiKeyVisible && ceeApiKeyInput.value.length > 0);
+    }
+
+    if (ceeApiKeyToggle) {
+      ceeApiKeyToggle.onclick = () => setCeeApiKeyVisible(!ceeApiKeyVisible);
+    }
+
+    // Save API key when input changes (debounced)
+    let ceeApiKeySaveTimeout = null;
+    if (ceeApiKeyInput) {
+      ceeApiKeyInput.oninput = () => {
+        // Update copy button visibility
+        if (ceeApiKeyCopy) ceeApiKeyCopy.classList.toggle('show', ceeApiKeyVisible && ceeApiKeyInput.value.length > 0);
+        
+        // Debounce save (500ms after typing stops)
+        if (ceeApiKeySaveTimeout) clearTimeout(ceeApiKeySaveTimeout);
+        ceeApiKeySaveTimeout = setTimeout(() => {
+          const key = ceeApiKeyInput.value.trim();
+          ipcRenderer.send('settings-changed', { ceeApiKey: key });
+          // Update status immediately based on input
+          updateCeeApiKeyStatus(key.length > 0);
+        }, 500);
+      };
+
+      // Also save on blur (in case user tabs away quickly)
+      ceeApiKeyInput.onblur = () => {
+        if (ceeApiKeySaveTimeout) {
+          clearTimeout(ceeApiKeySaveTimeout);
+          ceeApiKeySaveTimeout = null;
+        }
+        const key = ceeApiKeyInput.value.trim();
+        ipcRenderer.send('settings-changed', { ceeApiKey: key });
+        updateCeeApiKeyStatus(key.length > 0);
+      };
+    }
+
+    async function copyCeeApiKey() {
+      if (!ceeApiKeyVisible || !ceeApiKeyInput) return;
+      const text = String(ceeApiKeyInput.value || '');
+      if (!text) return;
+
+      let ok = false;
+      try {
+        if (clipboard && clipboard.writeText) {
+          clipboard.writeText(text);
+          ok = true;
+        }
+      } catch (_) {}
+
+      if (!ok) {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            ok = true;
+          }
+        } catch (_) {}
+      }
+
+      if (ceeApiKeyCopy) {
+        const prev = ceeApiKeyCopy.textContent;
+        ceeApiKeyCopy.textContent = ok ? '✓' : '!';
+        setTimeout(() => {
+          if (ceeApiKeyCopy) ceeApiKeyCopy.textContent = prev || '📋';
+        }, 700);
+      }
+    }
+
+    if (ceeApiKeyCopy) {
+      ceeApiKeyCopy.onclick = copyCeeApiKey;
+    }
+
+    // Explicitly handle focus for API key input (Electron quirk workaround)
+    if (ceeApiKeyInput) {
+      // Handle mousedown to focus before click event
+      ceeApiKeyInput.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        // Request window focus from main process
+        ipcRenderer.send('request-focus');
+        // Small delay to ensure focus sticks
+        setTimeout(() => ceeApiKeyInput.focus(), 10);
+      });
+      
+      // Prevent focus loss when clicking inside the input
+      ceeApiKeyInput.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ceeApiKeyInput.focus();
+      });
+      
+      // When input gets focus, ensure window is focused
+      ceeApiKeyInput.addEventListener('focus', () => {
+        ipcRenderer.send('request-focus');
+      });
+      
+      // Prevent keyboard events from propagating to parent/document
+      ceeApiKeyInput.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+      });
+      
+      ceeApiKeyInput.addEventListener('keyup', (e) => {
+        e.stopPropagation();
+      });
+      
+      ceeApiKeyInput.addEventListener('keypress', (e) => {
+        e.stopPropagation();
+      });
+    }
+    setCeeApiKeyVisible(false);
+
+    // Custom system prompt handling (debounced)
+    const ceeSystemPromptInput = $('ceeSystemPrompt');
+    let ceeSystemPromptSaveTimeout = null;
+    if (ceeSystemPromptInput) {
+      ceeSystemPromptInput.oninput = () => {
+        if (ceeSystemPromptSaveTimeout) clearTimeout(ceeSystemPromptSaveTimeout);
+        ceeSystemPromptSaveTimeout = setTimeout(() => {
+          const prompt = ceeSystemPromptInput.value.trim();
+          ipcRenderer.send('settings-changed', { ceeSystemPrompt: prompt });
+        }, 500);
+      };
+      ceeSystemPromptInput.onblur = () => {
+        if (ceeSystemPromptSaveTimeout) {
+          clearTimeout(ceeSystemPromptSaveTimeout);
+          ceeSystemPromptSaveTimeout = null;
+        }
+        const prompt = ceeSystemPromptInput.value.trim();
+        ipcRenderer.send('settings-changed', { ceeSystemPrompt: prompt });
+      };
+    }
+
     // Trim excess messages
     function trimMessages() {
       while (messages.children.length > maxMessages) {
@@ -1112,6 +1579,24 @@
         const secs = parseInt(settings.slowModeSeconds, 10) || 3;
         if (slowModeSlider) slowModeSlider.value = secs;
         if (slowModeValueEl) slowModeValueEl.textContent = secs;
+      }
+      // @Cee Agent settings
+      if (settings.enableCeeAgent !== undefined && enableCeeAgentCheckbox) {
+        enableCeeAgentCheckbox.checked = settings.enableCeeAgent;
+        updateCeeApiKeyVisibility();
+      }
+      if (settings.ceeApiProvider !== undefined) {
+        updateCeeApiProviderUI(settings.ceeApiProvider);
+      }
+      if (settings.ceeApiKeySet !== undefined) {
+        updateCeeApiKeyStatus(settings.ceeApiKeySet);
+        // Update copy button visibility based on whether key is set
+        if (ceeApiKeyCopy && ceeApiKeyInput) {
+          ceeApiKeyCopy.classList.toggle('show', ceeApiKeyVisible && settings.ceeApiKeySet);
+        }
+      }
+      if (settings.ceeSystemPrompt !== undefined && ceeSystemPromptInput) {
+        ceeSystemPromptInput.value = settings.ceeSystemPrompt;
       }
     });
 

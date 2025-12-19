@@ -30,6 +30,25 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    /* Dark mode select dropdown */
+    select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239a9a9a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px !important;
+    }
+    select option {
+      background: #0a0a0a;
+      color: #e8e8e8;
+      padding: 12px;
+    }
+    select option:hover, select option:focus {
+      background: #1a1a1a;
+    }
+
     html {
       margin: 0;
       padding: 0;
@@ -72,6 +91,7 @@
       text-align: center;
       background: var(--bg-solid);
       border-bottom: 1px solid var(--border);
+      position: relative;
     }
 
     header h1 {
@@ -84,6 +104,46 @@
       margin: 8px 0 0 0;
       font-size: 13px;
       color: var(--text-dim);
+    }
+
+    /* Eye button for mode toggle */
+    #mode-toggle-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    #mode-toggle-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    #mode-toggle-btn:active {
+      transform: scale(0.95);
+    }
+
+    #mode-toggle-btn.passive {
+      background: rgba(138, 138, 138, 0.3);
+    }
+
+    #mode-toggle-btn {
+      display: none;
+    }
+
+    #admin-panel.visible ~ * #mode-toggle-btn,
+    body:has(#admin-panel.visible) #mode-toggle-btn {
+      display: flex;
     }
 
     /* Status indicator */
@@ -554,6 +614,7 @@
 <body>
   <div id="app">
     <header>
+      <button id="mode-toggle-btn" title="Toggle Passive/Active Mode">👁</button>
       <h1>Admin Panel</h1>
       <p>Moderate messages and control settings</p>
       <div class="status">
@@ -687,6 +748,42 @@
             <div class="empty-state">No blocked IPs</div>
           </div>
         </div>
+
+        <!-- @Cee AI Agent Settings -->
+        <div class="setting-group" style="margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border);">
+          <label style="font-size: 12px; color: var(--accent); margin-bottom: 12px;">@Cee AI Agent</label>
+          <div class="toggle-row" style="border-bottom: none;">
+            <label>Enable @Cee Agent</label>
+            <div class="toggle">
+              <input type="checkbox" id="enableCeeAgent">
+              <span class="toggle-slider"></span>
+            </div>
+          </div>
+          
+          <div id="ceeApiKeyGroup" style="margin-top: 12px; display: none;">
+            <label>API Provider</label>
+            <select id="ceeApiProvider" style="width: 100%; padding: 12px 14px; border-radius: 10px; background: #0a0a0a; border: 1px solid var(--border-strong); color: var(--text); font: 14px 'Outfit', sans-serif; margin-bottom: 12px; cursor: pointer;">
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+            </select>
+            <label id="ceeApiKeyLabel">OpenAI API Key</label>
+            <div id="ceeApiKeyStatusIndicator" style="font-size: 12px; padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); margin-bottom: 8px; color: var(--danger);">
+              Not Set
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="password" id="cee-api-key" placeholder="sk-..." autocomplete="off" style="flex: 1; padding: 12px 14px; border-radius: 10px;">
+              <button class="btn" id="cee-api-key-toggle" type="button" style="width: auto; padding: 12px 16px;">Show</button>
+            </div>
+            <div style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">
+              Users can ask @Cee questions with screen context
+            </div>
+            <label style="margin-top: 16px;">Custom Instructions (optional)</label>
+            <textarea id="ceeSystemPrompt" rows="2" maxlength="300" placeholder="e.g., be like Darth Vader, answer in 10 words only, talk like Yoda..." style="width: 100%; padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-strong); color: var(--text); font: 14px 'Outfit', sans-serif; resize: vertical; min-height: 60px;"></textarea>
+            <div style="font-size: 11px; color: var(--text-dim); margin-top: 6px;">
+              Customize Cee's personality or response style
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Message Input Area -->
@@ -725,6 +822,7 @@
     const statusDot = $('status-dot');
     const statusText = $('status-text');
     const messagesList = $('messages-list');
+    const modeToggleBtn = $('mode-toggle-btn');
 
     // Settings elements
     const hideIpToggle = $('hideIp');
@@ -937,6 +1035,10 @@
             setStatus(true, 'Connected as Admin');
             loginPanel.classList.add('hidden');
             adminPanel.classList.add('visible');
+            // Show mode toggle button when logged in
+            if (modeToggleBtn) {
+              modeToggleBtn.style.display = 'flex';
+            }
             reconnectAttempts = 0;
             startHeartbeat();
             // Apply initial settings
@@ -965,6 +1067,19 @@
         else if (data.type === 'message-deleted') {
           if (data.msgId !== undefined) {
             removeMessage(data.msgId);
+          }
+        }
+
+        else if (data.type === 'mode-state') {
+          // Update mode toggle button state
+          if (modeToggleBtn) {
+            if (data.mode === 'passive') {
+              modeToggleBtn.classList.add('passive');
+              modeToggleBtn.title = 'Active Mode (Currently Passive)';
+            } else {
+              modeToggleBtn.classList.remove('passive');
+              modeToggleBtn.title = 'Passive Mode (Currently Active)';
+            }
           }
         }
 
@@ -1214,6 +1329,21 @@
         if (slowModeSlider) slowModeSlider.value = slowModeSeconds;
         if (slowModeValue) slowModeValue.textContent = slowModeSeconds;
       }
+      // @Cee Agent settings
+      if (settings.enableCeeAgent !== undefined && enableCeeAgentToggle) {
+        enableCeeAgentToggle.checked = settings.enableCeeAgent;
+        updateCeeApiKeyVisibility();
+      }
+      if (settings.ceeApiProvider !== undefined) {
+        updateCeeApiProviderUI(settings.ceeApiProvider);
+      }
+      if (settings.ceeApiKeySet !== undefined) {
+        updateCeeApiKeyStatusIndicator(settings.ceeApiKeySet);
+      }
+      if (settings.ceeSystemPrompt !== undefined) {
+        const promptInput = $('ceeSystemPrompt');
+        if (promptInput) promptInput.value = settings.ceeSystemPrompt;
+      }
       isApplyingSettings = false;
     }
 
@@ -1393,6 +1523,15 @@
     loginBtn.onclick = login;
     adminSendBtn.onclick = sendAdminMessage;
 
+    // Mode toggle button
+    if (modeToggleBtn) {
+      modeToggleBtn.onclick = () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'admin-toggle-mode' }));
+        }
+      };
+    }
+
     adminMsgInput.onkeypress = (e) => {
       if (e.key === 'Enter') sendAdminMessage();
     };
@@ -1472,6 +1611,117 @@
         slowModeSeconds = parseInt(slowModeSlider.value, 10) || 3;
         if (slowModeValue) slowModeValue.textContent = slowModeSeconds;
         sendSettings({ slowModeSeconds });
+      };
+    }
+
+    // @Cee Agent settings
+    const enableCeeAgentToggle = $('enableCeeAgent');
+    const ceeApiKeyGroup = $('ceeApiKeyGroup');
+    const ceeApiKeyInput = $('cee-api-key');
+    const ceeApiKeyToggle = $('cee-api-key-toggle');
+    const ceeApiKeyStatusIndicator = $('ceeApiKeyStatusIndicator');
+    const ceeApiProviderSelect = $('ceeApiProvider');
+    const ceeApiKeyLabel = $('ceeApiKeyLabel');
+    let ceeApiKeyVisible = false;
+
+    function updateCeeApiKeyVisibility() {
+      if (ceeApiKeyGroup) {
+        ceeApiKeyGroup.style.display = enableCeeAgentToggle && enableCeeAgentToggle.checked ? 'block' : 'none';
+      }
+    }
+
+    function updateCeeApiKeyStatusIndicator(isSet) {
+      if (ceeApiKeyStatusIndicator) {
+        if (isSet) {
+          ceeApiKeyStatusIndicator.textContent = 'API Key Set ✓';
+          ceeApiKeyStatusIndicator.style.color = 'rgba(255, 255, 255, 0.75)';
+        } else {
+          ceeApiKeyStatusIndicator.textContent = 'Not Set';
+          ceeApiKeyStatusIndicator.style.color = 'var(--danger)';
+        }
+      }
+    }
+
+    function updateCeeApiProviderUI(provider) {
+      const p = provider || 'openai';
+      if (ceeApiKeyLabel) {
+        ceeApiKeyLabel.textContent = p === 'gemini' ? 'Gemini API Key' : 'OpenAI API Key';
+      }
+      if (ceeApiKeyInput) {
+        ceeApiKeyInput.placeholder = p === 'gemini' ? 'AIza...' : 'sk-...';
+      }
+      if (ceeApiProviderSelect) {
+        ceeApiProviderSelect.value = p;
+      }
+    }
+
+    // Provider dropdown handler
+    if (ceeApiProviderSelect) {
+      ceeApiProviderSelect.onchange = () => {
+        if (isApplyingSettings) return;
+        const provider = ceeApiProviderSelect.value;
+        updateCeeApiProviderUI(provider);
+        // Clear the API key when switching providers
+        if (ceeApiKeyInput) {
+          ceeApiKeyInput.value = '';
+          updateCeeApiKeyStatusIndicator(false);
+        }
+        sendSettings({ ceeApiProvider: provider, ceeApiKey: '' });
+      };
+    }
+
+    if (enableCeeAgentToggle) {
+      enableCeeAgentToggle.onchange = () => {
+        if (isApplyingSettings) return;
+        updateCeeApiKeyVisibility();
+        sendSettings({ enableCeeAgent: enableCeeAgentToggle.checked });
+      };
+    }
+
+    if (ceeApiKeyInput) {
+      // Debounce API key changes
+      let ceeApiKeyTimeout = null;
+      ceeApiKeyInput.oninput = () => {
+        if (ceeApiKeyTimeout) clearTimeout(ceeApiKeyTimeout);
+        ceeApiKeyTimeout = setTimeout(() => {
+          const key = ceeApiKeyInput.value.trim();
+          sendSettings({ ceeApiKey: key });
+          // Update local status indicator immediately
+          updateCeeApiKeyStatusIndicator(!!key);
+        }, 500);
+      };
+      ceeApiKeyInput.onblur = () => {
+        if (ceeApiKeyTimeout) clearTimeout(ceeApiKeyTimeout);
+        const key = ceeApiKeyInput.value.trim();
+        sendSettings({ ceeApiKey: key });
+        // Update local status indicator immediately
+        updateCeeApiKeyStatusIndicator(!!key);
+      };
+    }
+
+    if (ceeApiKeyToggle) {
+      ceeApiKeyToggle.onclick = () => {
+        ceeApiKeyVisible = !ceeApiKeyVisible;
+        if (ceeApiKeyInput) ceeApiKeyInput.type = ceeApiKeyVisible ? 'text' : 'password';
+        ceeApiKeyToggle.textContent = ceeApiKeyVisible ? 'Hide' : 'Show';
+      };
+    }
+
+    // Custom system prompt handling (debounced)
+    const ceeSystemPromptInput = $('ceeSystemPrompt');
+    let ceeSystemPromptTimeout = null;
+    if (ceeSystemPromptInput) {
+      ceeSystemPromptInput.oninput = () => {
+        if (ceeSystemPromptTimeout) clearTimeout(ceeSystemPromptTimeout);
+        ceeSystemPromptTimeout = setTimeout(() => {
+          const prompt = ceeSystemPromptInput.value.trim();
+          sendSettings({ ceeSystemPrompt: prompt });
+        }, 500);
+      };
+      ceeSystemPromptInput.onblur = () => {
+        if (ceeSystemPromptTimeout) clearTimeout(ceeSystemPromptTimeout);
+        const prompt = ceeSystemPromptInput.value.trim();
+        sendSettings({ ceeSystemPrompt: prompt });
       };
     }
 
