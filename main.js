@@ -228,9 +228,9 @@ webServer.on('settings-update', (msg) => {
         mainWindow.webContents.send('settings-update', { ...currentSettings, ceeApiKeySet: !!ceeApiKey });
     }
 
-    // Sync to other clients (WebServer handles admin broadcast, but we might need to sync session URLs if hideIp changed)
-    const urls = webServer.getUrls(); // Note: WebServer's getUrls might need help if tunnel state changes
-    webServer.broadcastToAdmins({
+    // Sync to all clients (Admins and standard users)
+    const urls = webServer.getUrls();
+    webServer.broadcast({
         type: 'settings-sync', settings: { ...currentSettings, ceeApiKeySet: !!ceeApiKey },
         mobileUrl: urls.mobileUrl, wsUrl: urls.wsUrl
     });
@@ -282,9 +282,9 @@ ipcMain.on('settings-changed', (_, settings) => {
         ceeAgent.updateSettings({ ...currentSettings, ceeApiKey });
     }
 
-    // Broadcast to admins
+    // Broadcast to all clients
     const urls = webServer.getUrls();
-    webServer.broadcastToAdmins({
+    webServer.broadcast({
         type: 'settings-sync', settings: { ...currentSettings, ceeApiKeySet: !!ceeApiKey },
         mobileUrl: urls.mobileUrl, wsUrl: urls.wsUrl
     });

@@ -171,6 +171,7 @@
             serverAddress = localStorage.getItem('livechat_server') || '';
         }
         nameInput.value = localStorage.getItem('livechat_name') || '';
+        const lastSessionCode = localStorage.getItem('livechat_last_session') || '';
 
         // Auto-detect server from URL if accessed from same network
         if (!serverAddress && window.location.hostname !== 'localhost') {
@@ -186,8 +187,9 @@
             }
         }
 
-        // Auto-connect if name is saved
-        if (serverAddress && nameInput.value && urlSessionCode) {
+        // Auto-connect if name is saved AND we are reconnecting to the same session
+        // This prevents auto-login when clicking a link for a NEW session
+        if (serverAddress && nameInput.value && urlSessionCode && urlSessionCode === lastSessionCode) {
             connect();
         }
 
@@ -273,6 +275,10 @@
                 if (data.type === 'join-result') {
                     if (data.success) {
                         sessionCode = data.code || urlSessionCode;
+
+                        // Save validated session code to allow auto-login on refresh
+                        localStorage.setItem('livechat_last_session', sessionCode);
+
                         setStatus(true, 'Connected');
                         connectPanel.classList.add('hidden');
                         chatPanel.classList.add('visible');
