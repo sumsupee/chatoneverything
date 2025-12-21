@@ -1793,6 +1793,20 @@ function createHttpServer() {
                 res.end(html);
             });
         } else if (pathname === '/admin' || pathname === '/admin.html') {
+            // Admin page also requires valid session code
+            if (!providedCode) {
+                res.writeHead(200, { 'Content-Type': 'text/html' });
+                res.end(generateJoinPageHtml());
+                return;
+            }
+
+            // Wrong session code - show error page
+            if (providedCode.toUpperCase() !== sessionCode) {
+                res.writeHead(403, { 'Content-Type': 'text/html' });
+                res.end(generateSessionNotFoundHtml());
+                return;
+            }
+
             const adminPath = path.join(__dirname, 'mobile', 'admin.html');
             fs.readFile(adminPath, 'utf8', (err, data) => {
                 if (err) {
@@ -2518,8 +2532,7 @@ async function createTunnels() {
 
 app.whenReady().then(async () => {
     // Register hotkeys before window creation (important for Linux)
-    globalShortcut.register('CommandOrControl+Shift+O', toggleMode);
-    globalShortcut.register('F9', toggleMode);
+    globalShortcut.register('CommandOrControl+Alt+K', toggleMode);
 
     // Start per-session chat logging
     initChatLogging();
@@ -2534,7 +2547,7 @@ app.whenReady().then(async () => {
     await createTunnels();
 
     const localIP = getLocalIP();
-    console.log('Overlay started. Press Ctrl+Shift+O or F9 to toggle mode.');
+    console.log('Overlay started. Press Ctrl+Alt+K to toggle mode.');
     console.log(`Session Code: ${sessionCode}`);
     console.log(`Admin Password: ${adminPassword}`);
     if (httpTunnel && wsTunnel) {

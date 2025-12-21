@@ -138,15 +138,14 @@
       justify-content: flex-end;
       gap: 4px;
       align-items: flex-start;
+      scrollbar-width: none;
+      /* Firefox */
     }
 
     #messages::-webkit-scrollbar {
-      width: 5px;
-    }
-
-    #messages::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 3px;
+      width: 0;
+      height: 0;
+      display: none;
     }
 
     .msg {
@@ -834,7 +833,7 @@
         <span title="Drag to Move">Chat on Everything</span>
       </div>
       <div style="display:flex;gap:8px">
-        <button id="passiveBtn" class="bar-btn" title="Immersive Mode Ctrl+Shift+O/F9">👁</button>
+        <button id="passiveBtn" class="bar-btn" title="Immersive Mode Ctrl+Alt+K">👁</button>
         <button id="settingsBtn" class="bar-btn" title="Settings">⚙</button>
         <button id="closeBtn" class="bar-btn" title="End Session">✕</button>
       </div>
@@ -894,7 +893,7 @@
 
           <label>Hotkey</label>
           <div style="font:600 11px 'JetBrains Mono',monospace;color:var(--accent);margin:4px 0 12px 0"
-            id="hotkey-value">Ctrl+Shift+O/F9</div>
+            id="hotkey-value">Ctrl+Alt+K</div>
           <label>Support</label>
           <div style="font:600 11px 'JetBrains Mono',monospace;color:var(--accent);margin:4px 0 12px 0"
             id="support-value">Sumedh Supe</div>
