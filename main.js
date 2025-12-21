@@ -189,7 +189,13 @@ webServer.on('settings-update', (msg) => {
     if (msg.showJoinCode !== undefined) currentSettings.showJoinCode = msg.showJoinCode;
     if (msg.showMobileLink !== undefined) currentSettings.showMobileLink = msg.showMobileLink;
     if (msg.disableChatHistory !== undefined) currentSettings.disableChatHistory = msg.disableChatHistory;
-    if (msg.hideIp !== undefined) currentSettings.hideIp = !!msg.hideIp;
+    if (msg.hideIp !== undefined) {
+        currentSettings.hideIp = !!msg.hideIp;
+        if (currentSettings.hideIp && (!httpTunnel || !wsTunnel)) {
+            console.log('Hide IP enabled, attempting to create tunnels...');
+            createTunnels();
+        }
+    }
     if (msg.customEmoji !== undefined) currentSettings.customEmoji = msg.customEmoji;
     if (msg.emojiDirectSend !== undefined) currentSettings.emojiDirectSend = !!msg.emojiDirectSend;
     if (msg.slowModeEnabled !== undefined) currentSettings.slowModeEnabled = !!msg.slowModeEnabled;
