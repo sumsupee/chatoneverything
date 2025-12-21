@@ -9,6 +9,7 @@ dist/
 out/
 build/
 bin/
+arx/
 
 # Electron
 *.asar

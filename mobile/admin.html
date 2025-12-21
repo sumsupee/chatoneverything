@@ -14,1101 +14,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;500;600&display=swap"
     rel="stylesheet">
-  <style>
-    :root {
-      /* Theatre dark theme */
-      --bg: #000;
-      --bg-solid: #000;
-      --accent: #8a8a8a;
-      --accent2: #6f6f6f;
-      --text: #e8e8e8;
-      --text-dim: #9a9a9a;
-      --border: rgba(255, 255, 255, 0.10);
-      --border-strong: rgba(255, 255, 255, 0.18);
-      --danger: #b24b57;
-      --warning: #b08a46;
-    }
-
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    /* Dark mode select dropdown */
-    select {
-      -webkit-appearance: none;
-      -moz-appearance: none;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239a9a9a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      padding-right: 36px !important;
-    }
-
-    select option {
-      background: #0a0a0a;
-      color: #e8e8e8;
-      padding: 12px;
-    }
-
-    select option:hover,
-    select option:focus {
-      background: #1a1a1a;
-    }
-
-    html {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      height: 100dvh;
-      background: var(--bg-solid);
-      font-family: 'Outfit', sans-serif;
-      color: var(--text);
-      overflow: hidden;
-    }
-
-    body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      height: 100dvh;
-      background: var(--bg-solid);
-      font-family: 'Outfit', sans-serif;
-      color: var(--text);
-      overflow: hidden;
-      position: fixed;
-      width: 100%;
-      top: 0;
-      left: 0;
-    }
-
-    #app {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      height: 100dvh;
-      max-width: 500px;
-      margin: 0 auto;
-      overflow: hidden;
-    }
-
-    /* Header */
-    header {
-      padding: 20px;
-      text-align: center;
-      background: var(--bg-solid);
-      border-bottom: 1px solid var(--border);
-      position: relative;
-    }
-
-    header h1 {
-      margin: 0;
-      font: 600 20px 'JetBrains Mono', monospace;
-      color: #a8a8a8;
-    }
-
-    header p {
-      margin: 8px 0 0 0;
-      font-size: 13px;
-      color: var(--text-dim);
-    }
-
-    /* Eye button for mode toggle */
-    #mode-toggle-btn {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.6);
-      border: 1px solid var(--border);
-      color: var(--text);
-      font-size: 20px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s;
-    }
-
-    #mode-toggle-btn:hover {
-      background: rgba(0, 0, 0, 0.8);
-    }
-
-    #mode-toggle-btn:active {
-      transform: scale(0.95);
-    }
-
-    #mode-toggle-btn.passive {
-      background: rgba(138, 138, 138, 0.4);
-    }
-
-    /* Remote control button - styled similar to eye button */
-    #remote-control-btn {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.6);
-      border: 1px solid var(--border);
-      color: var(--text);
-      font-size: 20px;
-      cursor: pointer;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s;
-    }
-
-    #remote-control-btn:hover {
-      background: rgba(0, 0, 0, 0.8);
-    }
-
-    #remote-control-btn:active {
-      transform: scale(0.95);
-    }
-
-    #remote-control-btn.active {
-      background: rgba(0, 150, 100, 0.5);
-    }
-
-    /* Show buttons only when authenticated and connected */
-    #mode-toggle-btn,
-    #remote-control-btn {
-      display: none;
-    }
-
-    #admin-panel.visible~* #mode-toggle-btn,
-    body:has(#admin-panel.visible) #mode-toggle-btn {
-      display: flex;
-    }
-
-    /* Remote button only shows when admin visible AND remote is enabled */
-    #admin-panel.visible.remote-enabled~* #remote-control-btn,
-    body:has(#admin-panel.visible.remote-enabled) #remote-control-btn {
-      display: flex;
-    }
-
-    /* Status indicator */
-    .status {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      margin-top: 10px;
-      font: 12px 'JetBrains Mono', monospace;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--danger);
-      transition: background 0.3s;
-    }
-
-    .status-dot.connected {
-      background: rgba(255, 255, 255, 0.55);
-      box-shadow: none;
-    }
-
-    /* Login panel */
-    #login-panel {
-      padding: 24px 20px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
-
-    #login-panel.hidden {
-      display: none;
-    }
-
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    label {
-      display: block;
-      font: 500 11px 'JetBrains Mono', monospace;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
-    }
-
-    input[type="text"],
-    input[type="password"] {
-      width: 100%;
-      padding: 14px 16px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--border-strong);
-      border-radius: 10px;
-      color: var(--text);
-      font: 16px 'Outfit', sans-serif;
-      outline: none;
-      transition: border-color 0.2s, background 0.2s;
-    }
-
-    input[type="text"]:focus,
-    input[type="password"]:focus {
-      border-color: rgba(255, 255, 255, 0.28);
-      background: rgba(255, 255, 255, 0.04);
-    }
-
-    input::placeholder {
-      color: var(--text-dim);
-    }
-
-    .btn {
-      width: 100%;
-      padding: 16px;
-      border: 1px solid var(--border-strong);
-      border-radius: 10px;
-      font: 600 16px 'Outfit', sans-serif;
-      cursor: pointer;
-      transition: transform 0.1s, opacity 0.2s;
-      background: transparent;
-      color: var(--text);
-    }
-
-    .btn:active {
-      transform: scale(0.98);
-    }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .btn-primary {
-      background: transparent;
-      color: var(--text);
-    }
-
-    .error {
-      color: var(--danger);
-      font-size: 13px;
-      margin-top: 10px;
-      text-align: center;
-    }
-
-    /* Admin panel */
-    #admin-panel {
-      flex: 1;
-      display: none;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    #admin-panel.visible {
-      display: flex;
-    }
-
-    /* Tabs */
-    .tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .tab {
-      flex: 1;
-      padding: 14px;
-      background: none;
-      border: none;
-      color: var(--text-dim);
-      font: 500 13px 'Outfit', sans-serif;
-      cursor: pointer;
-      transition: color 0.2s, border-color 0.2s;
-      border-bottom: 2px solid transparent;
-    }
-
-    .tab.active {
-      color: rgba(255, 255, 255, 0.85);
-      border-bottom-color: rgba(255, 255, 255, 0.28);
-    }
-
-    /* Tab content */
-    .tab-content {
-      display: none;
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
-
-    /* Messages tab */
-    #messages-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .msg-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      background: transparent;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      animation: slideIn 0.2s ease;
-    }
-
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateX(-10px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
-    }
-
-    .msg-item .content {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .msg-item .user {
-      font: 600 11px 'JetBrains Mono', monospace;
-      margin-bottom: 4px;
-    }
-
-    .msg-item .text {
-      font-size: 14px;
-      color: var(--text);
-      word-break: break-word;
-    }
-
-    .msg-item .delete-btn {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      color: rgba(255, 255, 255, 0.70);
-      font-size: 14px;
-      cursor: pointer;
-      flex-shrink: 0;
-    }
-
-    .msg-item .delete-btn:hover {
-      background: transparent;
-      border-color: rgba(255, 255, 255, 0.28);
-      color: rgba(255, 255, 255, 0.85);
-    }
-
-    .empty-state {
-      text-align: center;
-      color: var(--text-dim);
-      padding: 40px 20px;
-      font-size: 14px;
-    }
-
-    /* Message input area */
-    #message-input-area {
-      padding: 12px 16px;
-      background: rgba(0, 0, 0, 0.85);
-      border-top: 1px solid var(--border);
-    }
-
-    .username-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 10px;
-    }
-
-    .username-row label {
-      margin: 0;
-      white-space: nowrap;
-    }
-
-    .username-row input {
-      flex: 1;
-      padding: 8px 12px;
-      font-size: 14px;
-      border-radius: 8px;
-    }
-
-    .message-row {
-      display: flex;
-      gap: 10px;
-    }
-
-    #admin-msg-input {
-      flex: 1;
-      padding: 12px 14px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--border-strong);
-      border-radius: 20px;
-      color: var(--text);
-      font: 15px 'Outfit', sans-serif;
-      outline: none;
-    }
-
-    #admin-msg-input:focus {
-      border-color: rgba(255, 255, 255, 0.28);
-    }
-
-    #admin-send-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: transparent;
-      border: 1px solid var(--border-strong);
-      color: rgba(255, 255, 255, 0.75);
-      font-size: 18px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    #admin-send-btn:active {
-      transform: scale(0.9);
-    }
-
-    /* Settings tab */
-    .setting-group {
-      margin-bottom: 24px;
-    }
-
-    .setting-group label {
-      margin-bottom: 12px;
-    }
-
-    .setting-row {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    input[type="range"] {
-      flex: 1;
-      height: 6px;
-      accent-color: #6a6a6a;
-    }
-
-    .setting-value {
-      font: 600 18px 'JetBrains Mono', monospace;
-      color: rgba(255, 255, 255, 0.75);
-      min-width: 36px;
-      text-align: center;
-    }
-
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .toggle-row label {
-      margin: 0;
-      text-transform: none;
-      font: 500 14px 'Outfit', sans-serif;
-      color: var(--text);
-    }
-
-    /* Toggle switch */
-    .toggle {
-      position: relative;
-      width: 50px;
-      height: 28px;
-      cursor: pointer;
-    }
-
-    .toggle input {
-      position: absolute;
-      opacity: 0;
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      cursor: pointer;
-      z-index: 2;
-    }
-
-    .toggle-slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 28px;
-      transition: 0.3s;
-      pointer-events: none;
-    }
-
-    .toggle-slider::before {
-      position: absolute;
-      content: "";
-      height: 22px;
-      width: 22px;
-      left: 3px;
-      bottom: 3px;
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 50%;
-      transition: 0.3s;
-    }
-
-    .toggle input:checked+.toggle-slider {
-      background: rgba(255, 255, 255, 0.16);
-    }
-
-    .toggle input:checked+.toggle-slider::before {
-      transform: translateX(22px);
-    }
-
-    /* Safe area for notched phones */
-    @supports (padding-top: env(safe-area-inset-top)) {
-      header {
-        padding-top: calc(20px + env(safe-area-inset-top));
-      }
-
-      #message-input-area {
-        padding-bottom: calc(12px + env(safe-area-inset-bottom));
-      }
-    }
-
-    /* Adjust tab content to not overlap with message input */
-    .tab-content {
-      padding-bottom: 8px;
-    }
-
-    /* Blocked IPs UI */
-    #blocked-ips-list {
-      margin-top: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .blocked-ip-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 10px 12px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
-      background: rgba(15, 15, 25, 0.45);
-    }
-
-    .blocked-ip-item .ip {
-      font: 600 12px 'JetBrains Mono', monospace;
-      color: rgba(255, 255, 255, 0.75);
-      word-break: break-all;
-    }
-
-    .blocked-ip-item button {
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      background: transparent;
-      color: rgba(255, 255, 255, 0.80);
-      cursor: pointer;
-    }
-
-    .blocked-ip-item button:hover {
-      background: transparent;
-      border-color: rgba(255, 255, 255, 0.28);
-    }
-
-    /* Emoji shortcuts */
-    #admin-emoji-bar {
-      display: flex;
-      gap: 8px;
-      padding: 0 0 10px 0;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    #admin-emoji-bar::-webkit-scrollbar {
-      height: 0;
-    }
-
-    .emoji-btn {
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      background: transparent;
-      color: var(--text);
-      border-radius: 12px;
-      padding: 10px 12px;
-      font-size: 18px;
-      line-height: 1;
-      cursor: pointer;
-      flex: 0 0 auto;
-    }
-
-    .emoji-btn:active {
-      transform: scale(0.95);
-    }
-
-    #customEmojiInput {
-      width: 120px;
-    }
-
-    .emoji-preview {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      background: transparent;
-      font-size: 18px;
-      flex: 0 0 auto;
-    }
-
-    /* ============================================
-       REMOTE CONTROL STYLES
-       ============================================ */
-
-    /* Remote Control Panel - Full screen overlay */
-    #remote-panel {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: var(--bg-solid);
-      z-index: 1000;
-      flex-direction: column;
-    }
-
-    #remote-panel.visible {
-      display: flex;
-    }
-
-    .remote-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(0, 0, 0, 0.9);
-    }
-
-    .remote-header h2 {
-      margin: 0;
-      font: 600 18px 'Outfit', sans-serif;
-      color: var(--text);
-    }
-
-    .remote-close-btn,
-    .remote-settings-btn {
-      width: 40px;
-      height: 40px;
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 10px;
-      font-size: 18px;
-      cursor: pointer;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s, border-color 0.2s;
-    }
-
-    .remote-close-btn:hover,
-    .remote-settings-btn:hover {
-      background: rgba(255, 255, 255, 0.05);
-      border-color: rgba(255, 255, 255, 0.25);
-    }
-
-    /* Remote tabs */
-    .remote-tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-      background: rgba(0, 0, 0, 0.6);
-    }
-
-    .remote-tab {
-      flex: 1;
-      padding: 14px 8px;
-      background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
-      color: var(--text-dim);
-      font: 500 12px 'Outfit', sans-serif;
-      cursor: pointer;
-      transition: color 0.2s, border-color 0.2s;
-    }
-
-    .remote-tab.active {
-      color: rgba(255, 255, 255, 0.9);
-      border-bottom-color: rgba(100, 180, 255, 0.6);
-    }
-
-    /* Remote tab content */
-    .remote-content {
-      flex: 1;
-      display: none;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .remote-content.active {
-      display: flex;
-    }
-
-    /* Touch pad */
-    .touch-pad {
-      flex: 1;
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      margin: 16px;
-      min-height: 200px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-dim);
-      font-size: 14px;
-      touch-action: none;
-      user-select: none;
-      position: relative;
-    }
-
-    .touch-pad::after {
-      content: 'Move your finger to control the mouse';
-      opacity: 0.4;
-      pointer-events: none;
-    }
-
-    .touch-pad.active::after {
-      opacity: 0;
-    }
-
-    /* Mouse buttons */
-    .mouse-buttons {
-      display: flex;
-      gap: 12px;
-      padding: 0 16px 16px;
-    }
-
-    .mouse-btn {
-      flex: 1;
-      padding: 18px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border-strong);
-      color: var(--text);
-      font: 600 14px 'Outfit', sans-serif;
-      cursor: pointer;
-      transition: background 0.1s, transform 0.1s;
-    }
-
-    .mouse-btn:active {
-      transform: scale(0.96);
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    /* Keyboard content */
-    .keyboard-input-area {
-      padding: 16px;
-      display: flex;
-      justify-content: center;
-    }
-
-    #remote-keyboard-input {
-      width: 80%;
-      max-width: 320px;
-      padding: 16px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--border-strong);
-      border-radius: 12px;
-      color: var(--text);
-      font: 16px 'JetBrains Mono', monospace;
-      outline: none;
-      text-align: center;
-    }
-
-    #remote-keyboard-input:focus {
-      border-color: rgba(100, 180, 255, 0.4);
-    }
-
-    .special-keys {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 8px;
-      padding: 0 16px 8px;
-    }
-
-    .key-row {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      width: 100%;
-    }
-
-    .key-btn {
-      padding: 14px 18px;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border);
-      color: var(--text);
-      font: 500 14px 'Outfit', sans-serif;
-      cursor: pointer;
-      min-width: 80px;
-      text-align: center;
-    }
-
-    .key-btn:active {
-      background: rgba(255, 255, 255, 0.12);
-    }
-
-    .key-btn.small {
-      padding: 12px 14px;
-      font-size: 12px;
-      min-width: 70px;
-    }
-
-    /* Navigation Keys (Home/End, PageUp/PageDown) */
-    .nav-keys-container {
-      display: flex;
-      justify-content: center;
-      gap: 24px;
-      padding: 16px;
-    }
-
-    .nav-key-group {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .nav-key-group .key-btn {
-      min-width: 90px;
-    }
-
-    /* Circular D-Pad Arrow Keys */
-    .arrow-dpad {
-      display: flex;
-      justify-content: center;
-      padding: 16px;
-    }
-
-    .dpad-container {
-      position: relative;
-      width: 160px;
-      height: 160px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 50%;
-      border: 2px solid var(--border);
-    }
-
-    .dpad-btn {
-      position: absolute;
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid var(--border);
-      color: var(--text);
-      font-size: 18px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.15s;
-    }
-
-    .dpad-btn:active {
-      background: rgba(255, 255, 255, 0.2);
-    }
-
-    .dpad-up {
-      top: 8px;
-      left: 50%;
-      transform: translateX(-50%);
-    }
-
-    .dpad-down {
-      bottom: 8px;
-      left: 50%;
-      transform: translateX(-50%);
-    }
-
-    .dpad-left {
-      left: 8px;
-      top: 50%;
-      transform: translateY(-50%);
-    }
-
-    .dpad-right {
-      right: 8px;
-      top: 50%;
-      transform: translateY(-50%);
-    }
-
-    .dpad-center {
-      position: absolute;
-      width: 40px;
-      height: 40px;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.4);
-      border-radius: 50%;
-      border: 1px solid var(--border);
-    }
-
-    /* Media controls */
-    .media-section {
-      padding: 20px 16px;
-    }
-
-    .media-section h3 {
-      margin: 0 0 16px;
-      font: 600 14px 'Outfit', sans-serif;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    .media-row {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      margin-bottom: 20px;
-    }
-
-    .media-btn {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border-strong);
-      color: var(--text);
-      font-size: 24px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .media-btn.large {
-      width: 80px;
-      height: 80px;
-      font-size: 32px;
-    }
-
-    .media-btn:active {
-      background: rgba(255, 255, 255, 0.12);
-      transform: scale(0.95);
-    }
-
-    .volume-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 0 24px;
-    }
-
-    .volume-row input[type="range"] {
-      flex: 1;
-    }
-
-    /* VLC controls */
-    .vlc-section {
-      padding: 16px;
-    }
-
-    .vlc-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 16px;
-      justify-content: center;
-    }
-
-    .vlc-btn {
-      padding: 12px 16px;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border);
-      color: var(--text);
-      font: 500 13px 'Outfit', sans-serif;
-      cursor: pointer;
-      min-width: 60px;
-      text-align: center;
-    }
-
-    .vlc-btn:active {
-      background: rgba(255, 255, 255, 0.12);
-    }
-
-    .vlc-btn.seek {
-      font: 600 12px 'JetBrains Mono', monospace;
-    }
-
-    /* Settings overlay */
-    .remote-settings-overlay {
-      display: none;
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.95);
-      z-index: 10;
-      padding: 20px;
-      overflow-y: auto;
-    }
-
-    .remote-settings-overlay.visible {
-      display: block;
-    }
-
-    .remote-settings-overlay h3 {
-      margin: 0 0 20px;
-      font: 600 18px 'Outfit', sans-serif;
-      color: var(--text);
-    }
-
-    .remote-settings-overlay .settings-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 14px 0;
-      border-bottom: 1px solid var(--border);
-      gap: 16px;
-    }
-
-    .remote-settings-overlay .settings-row:last-of-type {
-      border-bottom: none;
-    }
-
-    .remote-settings-overlay .settings-row label {
-      color: var(--text);
-      font: 500 14px 'Outfit', sans-serif;
-      flex-shrink: 0;
-    }
-
-    .remote-settings-overlay .settings-row input[type="range"] {
-      flex: 1;
-      max-width: 160px;
-    }
-  </style>
+  <link rel="stylesheet" href="/css/admin.css">
 </head>
 
 <body>
@@ -1441,8 +347,9 @@
     </div>
   </div>
 
-  <script>
-    const $ = id => document.getElementById(id);
+  <script type="module">
+    import { $, escapeHtml, getUserColor } from '/js/utils.js';
+    import { LiveChatClient } from '/js/websocket-client.js';
 
     // Elements
     const loginPanel = $('login-panel');
@@ -1495,15 +402,11 @@
     let slowModeEnabled = false;
     let slowModeSeconds = 3;
 
-    // Reconnection state
-    let reconnectAttempts = 0;
-    let reconnectTimer = null;
-    let heartbeatTimer = null;
+    // Reconnection state handled by chatClient
+    let chatClient = null;
     let lastServerAddress = '';
     let lastPassword = '';
-    const MAX_RECONNECT_ATTEMPTS = 50;
-    const RECONNECT_DELAY_BASE = 1000;
-    const HEARTBEAT_INTERVAL = 25000;
+    // const MAX_RECONNECT_ATTEMPTS = 50;
 
     // Detect if page is served over HTTPS (secure tunnel)
     const isSecure = window.location.protocol === 'https:';
@@ -1575,18 +478,7 @@
     }
 
     // Generate consistent color for username (same as overlay)
-    function getUserColor(username) {
-      let hash = 0;
-      for (let i = 0; i < username.length; i++) {
-        hash = username.charCodeAt(i) + ((hash << 5) - hash);
-        hash = hash & hash;
-      }
-      const hue = Math.abs(hash) % 360;
-      // Muted colors for theatre use (avoid vibrant user hues)
-      const saturation = 28 + (Math.abs(hash >> 8) % 10);
-      const lightness = 56 + (Math.abs(hash >> 16) % 10);
-      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-    }
+
 
     function login() {
       const server = serverInput.value.trim();
@@ -1610,52 +502,38 @@
       lastServerAddress = server;
       lastPassword = password;
 
-      // Determine protocol: use wss:// for HTTPS pages or if explicitly specified
-      let wsUrl;
-      if (server.startsWith('ws://') || server.startsWith('wss://')) {
-        wsUrl = server;
-      } else if (isSecure || server.includes('.loca.lt') || server.includes('ngrok') || server.includes('trycloudflare.com')) {
-        // Use secure WebSocket for HTTPS pages or known tunnel services (including Cloudflare)
-        wsUrl = `wss://${server}`;
-      } else {
-        wsUrl = `ws://${server}`;
+      let wsUrl = LiveChatClient.getWebSocketUrl(server);
+
+      if (chatClient) {
+        chatClient.disconnect();
       }
 
-      try {
-        ws = new WebSocket(wsUrl);
-      } catch (e) {
-        showError('Invalid server address');
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Login';
-        setStatus(false, 'Disconnected');
-        return;
-      }
-
-      ws.onopen = () => {
-        setStatus(false, 'Authenticating...');
-        // Send admin auth request
-        ws.send(JSON.stringify({ type: 'admin-auth', password }));
-      };
-
-      ws.onmessage = handleWebSocketMessage;
-
-      ws.onerror = () => {
-        showError('Connection failed');
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Login';
-        setStatus(false, 'Connection failed');
-      };
-
-      ws.onclose = () => {
-        clearHeartbeat();
-        setStatus(false, 'Disconnected');
-        if (adminPanel.classList.contains('visible')) {
-          // Try to reconnect instead of fully disconnecting
-          scheduleReconnect();
+      chatClient = new LiveChatClient({
+        onOpen: () => {
+          setStatus(false, 'Authenticating...');
+          chatClient.send({ type: 'admin-auth', password });
+        },
+        onMessage: handleWebSocketMessage,
+        onClose: () => {
+          setStatus(false, 'Disconnected');
+          if (adminPanel.classList.contains('visible')) {
+            // Client handles reconnect
+          }
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Login';
+        },
+        onError: (err) => {
+          showError('Connection failed');
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Login';
+          setStatus(false, 'Connection failed');
+        },
+        onStatusChange: (connected, text) => {
+          setStatus(connected, text);
         }
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Login';
-      };
+      });
+
+      chatClient.connect(wsUrl);
     }
 
     function handleWebSocketMessage(event) {
@@ -1671,8 +549,7 @@
             if (modeToggleBtn) {
               modeToggleBtn.style.display = 'flex';
             }
-            reconnectAttempts = 0;
-            startHeartbeat();
+            // reconnectAttempts = 0; // handled by client
             // Apply initial settings
             if (data.settings) {
               applySettings(data.settings);
@@ -1683,7 +560,7 @@
             }
           } else {
             showError('Invalid admin password');
-            ws.close();
+            chatClient.disconnect();
             loginBtn.disabled = false;
             loginBtn.textContent = 'Login';
             setStatus(false, 'Auth failed');
@@ -1769,7 +646,7 @@
           if (data.error === 'session_not_validated') {
             // Re-send admin auth if we have saved password
             if (lastPassword) {
-              ws.send(JSON.stringify({ type: 'admin-auth', password: lastPassword }));
+              chatClient.send({ type: 'admin-auth', password: lastPassword });
             }
           }
         }
@@ -1780,11 +657,8 @@
     }
 
     function disconnect(showUI = true) {
-      clearHeartbeat();
-      clearReconnectTimer();
-      if (ws) {
-        ws.close();
-        ws = null;
+      if (chatClient) {
+        chatClient.disconnect();
       }
       if (showUI) {
         adminPanel.classList.remove('visible');
@@ -1793,98 +667,10 @@
         messages.clear();
         renderMessages();
         passwordInput.value = '';
-        reconnectAttempts = 0;
       }
     }
 
-    function clearReconnectTimer() {
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-      }
-    }
 
-    function clearHeartbeat() {
-      if (heartbeatTimer) {
-        clearInterval(heartbeatTimer);
-        heartbeatTimer = null;
-      }
-    }
-
-    function startHeartbeat() {
-      clearHeartbeat();
-      heartbeatTimer = setInterval(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          try {
-            ws.send(JSON.stringify({ type: 'ping' }));
-          } catch (e) {
-            scheduleReconnect();
-          }
-        }
-      }, HEARTBEAT_INTERVAL);
-    }
-
-    function scheduleReconnect() {
-      if (reconnectTimer) return;
-      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-        setStatus(false, 'Connection lost');
-        return;
-      }
-
-      const delay = Math.min(RECONNECT_DELAY_BASE * Math.pow(1.5, reconnectAttempts), 10000);
-      reconnectAttempts++;
-
-      setStatus(false, `Reconnecting (${reconnectAttempts})...`);
-
-      reconnectTimer = setTimeout(() => {
-        reconnectTimer = null;
-        if (lastServerAddress && lastPassword) {
-          attemptReconnect();
-        }
-      }, delay);
-    }
-
-    function attemptReconnect() {
-      if (ws && ws.readyState === WebSocket.OPEN) return;
-
-      const server = lastServerAddress;
-      const password = lastPassword;
-      if (!server || !password) return;
-
-      let wsUrl;
-      if (server.startsWith('ws://') || server.startsWith('wss://')) {
-        wsUrl = server;
-      } else if (isSecure || server.includes('.loca.lt') || server.includes('ngrok') || server.includes('trycloudflare.com')) {
-        wsUrl = `wss://${server}`;
-      } else {
-        wsUrl = `ws://${server}`;
-      }
-
-      try {
-        ws = new WebSocket(wsUrl);
-      } catch (e) {
-        scheduleReconnect();
-        return;
-      }
-
-      ws.onopen = () => {
-        setStatus(false, 'Authenticating...');
-        ws.send(JSON.stringify({ type: 'admin-auth', password }));
-      };
-
-      ws.onmessage = handleWebSocketMessage;
-
-      ws.onerror = () => {
-        scheduleReconnect();
-      };
-
-      ws.onclose = () => {
-        clearHeartbeat();
-        if (adminPanel.classList.contains('visible')) {
-          scheduleReconnect();
-        }
-      };
-    }
 
     function addMessage(id, user, text) {
       messages.set(id, { user, text });
@@ -1922,8 +708,8 @@
     }
 
     function deleteMessage(id) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'admin-delete-msg', msgId: id }));
+      if (chatClient) {
+        chatClient.send({ type: 'admin-delete-msg', msgId: id });
       }
     }
 
@@ -1988,8 +774,8 @@
     }
 
     function sendSettings(settings) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'admin-settings', ...settings }));
+      if (chatClient) {
+        chatClient.send({ type: 'admin-settings', ...settings });
       }
     }
 
@@ -2013,8 +799,8 @@
           <button data-ip="${escapeHtml(ip)}">Unblock</button>
         `;
         el.querySelector('button').onclick = () => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'admin-unblock-ip', ip }));
+          if (chatClient) {
+            chatClient.send({ type: 'admin-unblock-ip', ip });
           }
         };
         blockedIpsList.appendChild(el);
@@ -2041,20 +827,19 @@
     }
 
     function sendAdminText(text, shouldFocus = false) {
+      if (!text || !chatClient) return;
+
       const user = adminUsername.value.trim() || 'Admin';
-      const clean = String(text || '').trim();
-      if (!clean || !ws || ws.readyState !== WebSocket.OPEN) return;
       // Save username
       localStorage.setItem('livechat_admin_name', user);
 
-      ws.send(JSON.stringify({
+      chatClient.send({
         type: 'message',
         user: user,
-        text: clean
-      }));
+        text: text
+      });
 
       adminMsgInput.value = '';
-      // Only focus if explicitly requested (not for emoji sends)
       if (shouldFocus) {
         adminMsgInput.focus();
       }
@@ -2090,11 +875,7 @@
       sendAdminText(adminMsgInput.value, wasFocused);
     }
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
+
 
     // Emoji bar: send or insert based on setting
     // Use touchend for touch devices to prevent keyboard issues
@@ -2166,8 +947,8 @@
     // Mode toggle button
     if (modeToggleBtn) {
       modeToggleBtn.onclick = () => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'admin-toggle-mode' }));
+        if (chatClient) {
+          chatClient.send({ type: 'admin-toggle-mode' });
         }
       };
     }
@@ -2383,9 +1164,8 @@
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         if (adminPanel.classList.contains('visible') && lastServerAddress && lastPassword) {
-          if (!ws || ws.readyState !== WebSocket.OPEN) {
-            reconnectAttempts = 0;
-            attemptReconnect();
+          if (chatClient) {
+            chatClient.attemptReconnect();
           }
         }
       }
@@ -2394,9 +1174,8 @@
     // Also try to reconnect on focus
     window.addEventListener('focus', () => {
       if (adminPanel.classList.contains('visible') && lastServerAddress && lastPassword) {
-        if (!ws || ws.readyState !== WebSocket.OPEN) {
-          reconnectAttempts = 0;
-          attemptReconnect();
+        if (chatClient) {
+          chatClient.attemptReconnect();
         }
       }
     });
@@ -2428,15 +1207,15 @@
 
     // Helper: Send remote control message
     function sendRemote(type, data = {}) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type, ...data }));
+      if (chatClient) {
+        chatClient.send({ type, ...data });
       }
     }
 
     // Open remote control panel
     if (remoteControlBtn) {
       remoteControlBtn.onclick = () => {
-        if (!ws || ws.readyState !== WebSocket.OPEN) {
+        if (!chatClient || !chatClient.ws || chatClient.ws.readyState !== WebSocket.OPEN) {
           alert('Not connected to server');
           return;
         }

@@ -39,7 +39,8 @@
       "main.js",
       "index.html",
       "mobile/**/*",
-      "assets/**/*"
+      "assets/**/*",
+      "css/**/*"
     ],
     "linux": {
       "target": [
