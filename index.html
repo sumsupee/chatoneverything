@@ -32,6 +32,21 @@
       <button class="qr-back-btn" id="qr-back-btn">Continue</button>
     </div>
 
+    <!-- Admin QR Code Overlay -->
+    <div id="admin-qr-overlay"
+      style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;flex-direction:column;align-items:center;justify-content:center;background:rgba(15,15,25,0.98);backdrop-filter:blur(16px);z-index:300;padding:20px;text-align:center">
+      <button class="close-btn" id="admin-qr-close"
+        style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer">✕</button>
+      <div class="qr-main-title" style="font:600 16px 'Outfit',sans-serif;color:var(--accent);margin-bottom:20px">Admin
+        Access</div>
+      <img id="admin-qr-image" src="" alt="Admin QR Code"
+        style="width:160px;height:160px;border-radius:10px;background:white;padding:8px;margin-bottom:16px;box-shadow:0 4px 20px rgba(124,58,237,0.3)">
+      <div class="qr-warning"
+        style="font:600 13px 'Outfit',sans-serif;color:var(--danger);margin-top:8px;padding:8px 12px;background:rgba(255,71,87,0.1);border:1px solid rgba(255,71,87,0.2);border-radius:8px">
+        ⚠️ Do not share this QR code
+      </div>
+    </div>
+
     <!-- Resize edges -->
     <div class="resize-edge top" data-dir="n"></div>
     <div class="resize-edge bottom" data-dir="s"></div>
@@ -56,12 +71,36 @@
         </div>
         <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)">
           <label>Mobile URL</label>
-          <a style="font:500 11px 'JetBrains Mono',monospace;margin:4px 0 12px 0;word-break:break-all;display:block"
-            class="settings-link" id="mobile-url" href="#">Loading...</a>
+          <div style="display:flex;align-items:center;gap:8px;margin:4px 0 12px 0">
+            <a style="font:500 11px 'JetBrains Mono',monospace;word-break:break-all;flex:1" class="settings-link"
+              id="mobile-url" href="#">Loading...</a>
+            <button id="toggle-mobile-qr-btn" class="bar-btn" title="Toggle Main Overlay QR"
+              style="width:auto;padding:6px;line-height:0;background:transparent;border:1px solid var(--border)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+                <path d="M14 14h7v7h-7z"></path>
+              </svg>
+            </button>
+          </div>
 
           <label>Admin URL</label>
-          <a style="font:500 11px 'JetBrains Mono',monospace;margin:4px 0 12px 0;word-break:break-all;display:block"
-            class="settings-link" id="admin-url" href="#">Loading...</a>
+          <div style="display:flex;align-items:center;gap:8px;margin:4px 0 12px 0">
+            <a style="font:500 11px 'JetBrains Mono',monospace;word-break:break-all;flex:1" class="settings-link"
+              id="admin-url" href="#">Loading...</a>
+            <button id="show-admin-qr-btn" class="bar-btn" title="Show Admin QR Code"
+              style="width:auto;padding:6px;line-height:0;background:transparent;border:1px solid var(--border)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+                <path d="M14 14h7v7h-7z"></path>
+              </svg>
+            </button>
+          </div>
 
           <label>Admin Password</label>
           <div class="password-row">
@@ -80,60 +119,75 @@
             id="support-value">Sumedh Supe</div>
         </div>
 
-        <!-- Display Settings -->
-        <label style="margin-top:0">
-          <input type="checkbox" id="hideIp" style="margin-right:8px;accent-color:var(--accent)">
-          Hide IP
-        </label>
-
-        <label style="margin-top:16px">Max Messages</label>
-        <div class="setting-row">
-          <input type="range" id="maxMsgSlider" min="2" max="10" value="5">
-          <span class="value" id="maxMsgValue">5</span>
+        <!-- Privacy -->
+        <div style="margin-top:20px;padding-top:16px;">
+          <div style="font:500 12px 'Outfit',sans-serif;color:var(--accent);margin:4px 0 12px 0;">Privacy</div>
+          <label style="margin-top:0">
+            <input type="checkbox" id="hideIp" style="margin-right:8px;accent-color:var(--accent)">
+            Hide IP
+          </label>
         </div>
 
-        <label style="margin-top:16px">Font Size</label>
-        <div class="setting-row">
-          <input type="range" id="fontSizeSlider" min="10" max="48" value="13">
-          <span class="value" id="fontSizeValue">13</span>
-        </div>
-
-        <label style="margin-top:16px">
-          <input type="checkbox" id="showJoinCode" style="margin-right:8px;accent-color:var(--accent)">
-          Show Join Code
-        </label>
-
-        <label style="margin-top:12px">
-          <input type="checkbox" id="showMobileLink" style="margin-right:8px;accent-color:var(--accent)">
-          Show QR Code
-        </label>
-
-        <label style="margin-top:12px">
-          <input type="checkbox" id="disableChatHistory" checked style="margin-right:8px;accent-color:var(--accent)">
-          Disable Chat History for Others
-        </label>
-
-        <label style="margin-top:12px">
-          <input type="checkbox" id="enableFeedbackForm" style="margin-right:8px;accent-color:var(--accent)">
-          Enable Feedback Form
-        </label>
-
-        <label style="margin-top:12px">
-          <input type="checkbox" id="emojiDirectSend" checked style="margin-right:8px;accent-color:var(--accent)">
-          Emoji Direct to Send
-        </label>
-
-        <label style="margin-top:12px">
-          <input type="checkbox" id="slowModeEnabled" style="margin-right:8px;accent-color:var(--accent)">
-          Slow Mode
-        </label>
-
-        <div id="slowModeSecondsGroup" style="margin-top:12px;display:none">
-          <label>Slow Mode Delay (seconds)</label>
+        <!-- Chats -->
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+          <div style="font:500 12px 'Outfit',sans-serif;color:var(--accent);margin:4px 0 12px 0;">Chats</div>
+          <label style="margin-top:0">Max Messages</label>
           <div class="setting-row">
-            <input type="range" id="slowModeSlider" min="1" max="30" value="3">
-            <span class="value" id="slowModeValue">3</span>
+            <input type="range" id="maxMsgSlider" min="2" max="25" value="5">
+            <span class="value" id="maxMsgValue">5</span>
           </div>
+
+          <label style="margin-top:16px">Font Size</label>
+          <div class="setting-row">
+            <input type="range" id="fontSizeSlider" min="10" max="48" value="13">
+            <span class="value" id="fontSizeValue">13</span>
+          </div>
+        </div>
+
+        <!-- Joining Info -->
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+          <div style="font:500 12px 'Outfit',sans-serif;color:var(--accent);margin:4px 0 12px 0;">Joining Info</div>
+          <label style="margin-top:0">
+            <input type="checkbox" id="showMobileLink" style="margin-right:8px;accent-color:var(--accent)">
+            Show QR Code
+          </label>
+
+          <label style="margin-top:12px">
+            <input type="checkbox" id="showJoinCode" style="margin-right:8px;accent-color:var(--accent)">
+            Show Join Code
+          </label>
+        </div>
+
+        <!-- Moderation -->
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+          <div style="font:500 12px 'Outfit',sans-serif;color:var(--accent);margin:4px 0 12px 0;">Moderation</div>
+          <label style="margin-top:0">
+            <input type="checkbox" id="slowModeEnabled" style="margin-right:8px;accent-color:var(--accent)">
+            Enable Slow Mode
+          </label>
+
+          <div id="slowModeSecondsGroup" style="margin-top:12px;display:none">
+            <label>Slow Mode Delay (seconds)</label>
+            <div class="setting-row">
+              <input type="range" id="slowModeSlider" min="1" max="30" value="3">
+              <span class="value" id="slowModeValue">3</span>
+            </div>
+          </div>
+
+          <label style="margin-top:12px">
+            <input type="checkbox" id="emojiDirectSend" checked style="margin-right:8px;accent-color:var(--accent)">
+            Emoji Direct to Send
+          </label>
+
+          <label style="margin-top:12px">
+            <input type="checkbox" id="disableChatHistory" checked style="margin-right:8px;accent-color:var(--accent)">
+            Disable Chat History for Others
+          </label>
+
+          <label style="margin-top:12px">
+            <input type="checkbox" id="enableFeedbackForm" style="margin-right:8px;accent-color:var(--accent)">
+            Enable Feedback Form
+          </label>
         </div>
 
         <!-- Remote Control Settings -->
@@ -457,7 +511,24 @@
     showMobileLinkCheckbox.onchange = () => {
       updateQRDisplay(showMobileLinkCheckbox.checked);
       ipcRenderer.send('settings-changed', { showMobileLink: showMobileLinkCheckbox.checked });
+      // Update toggle button style if desired (optional)
+      // Update toggle button style if desired (optional)
+      if (toggleMobileQrBtn) {
+        toggleMobileQrBtn.style.background = showMobileLinkCheckbox.checked ? 'var(--accent)' : 'transparent';
+        toggleMobileQrBtn.style.color = showMobileLinkCheckbox.checked ? 'white' : 'white';
+      }
     };
+
+    // Mobile URL QR Toggle Button Logic
+    const toggleMobileQrBtn = $('toggle-mobile-qr-btn');
+    if (toggleMobileQrBtn) {
+      toggleMobileQrBtn.onclick = () => {
+        // Toggle the checkbox
+        showMobileLinkCheckbox.checked = !showMobileLinkCheckbox.checked;
+        // Trigger the change event manually
+        showMobileLinkCheckbox.onchange();
+      };
+    }
 
     // QR back button
     $('qr-back-btn').onclick = () => {
@@ -465,6 +536,29 @@
       updateQRDisplay(false);
       ipcRenderer.send('settings-changed', { showMobileLink: false });
     };
+
+    // Admin QR Code Logic
+    const adminQrOverlay = $('admin-qr-overlay');
+    const adminQrImage = $('admin-qr-image');
+    const showAdminQrBtn = $('show-admin-qr-btn');
+    const adminQrClose = $('admin-qr-close');
+
+    if (showAdminQrBtn) {
+      showAdminQrBtn.onclick = () => {
+        const url = $('admin-url').href;
+        if (url && url !== '#') {
+          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`;
+          adminQrImage.src = qrApiUrl;
+          adminQrOverlay.style.display = 'flex';
+        }
+      };
+    }
+
+    if (adminQrClose) {
+      adminQrClose.onclick = () => {
+        adminQrOverlay.style.display = 'none';
+      };
+    }
 
     // Hide IP setting
     const hideIpCheckbox = $('hideIp');
@@ -1003,6 +1097,12 @@
       if (settings.showMobileLink !== undefined) {
         showMobileLinkCheckbox.checked = settings.showMobileLink;
         updateQRDisplay(settings.showMobileLink);
+        // Sync toggle button style
+        const toggleBtn = $('toggle-mobile-qr-btn');
+        if (toggleBtn) {
+          toggleBtn.style.background = settings.showMobileLink ? 'var(--accent)' : 'transparent';
+          toggleBtn.style.color = settings.showMobileLink ? 'white' : 'white';
+        }
       }
       if (settings.disableChatHistory !== undefined) {
         disableChatHistoryCheckbox.checked = settings.disableChatHistory;

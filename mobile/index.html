@@ -186,6 +186,11 @@
             }
         }
 
+        // Auto-connect if name is saved
+        if (serverAddress && nameInput.value && urlSessionCode) {
+            connect();
+        }
+
         function setStatus(connected, text) {
             statusDot.classList.toggle('connected', connected);
             statusText.textContent = text;

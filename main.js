@@ -24,7 +24,7 @@ const WS_PORT = 8765;
 // Settings (Mutable state shared with modules)
 // Settings (Mutable state shared with modules)
 const currentSettings = {
-    maxMessages: 10,
+    maxMessages: 5,
     fontSize: 16,
     showJoinCode: false,
     showMobileLink: false,

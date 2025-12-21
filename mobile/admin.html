@@ -236,6 +236,15 @@
         serverInput.value = window.location.hostname + ':8765';
       }
     }
+
+    // Auto-login if password is saved
+    const savedPassword = localStorage.getItem('livechat_admin_password');
+    if (savedPassword) {
+      passwordInput.value = savedPassword;
+      if (serverInput.value) {
+        login();
+      }
+    }
     const adminUser = localStorage.getItem('livechat_admin_name');
 
     function setStatus(connected, text) {
@@ -305,6 +314,7 @@
         const data = JSON.parse(event.data);
         if (data.type === 'admin-auth-result') {
           if (data.success) {
+            localStorage.setItem('livechat_admin_password', lastPassword);
             setStatus(true, 'Connected as Admin');
 
             // 1. Inject UI HTML
@@ -343,6 +353,7 @@
             }
 
           } else {
+            localStorage.removeItem('livechat_admin_password');
             showError('Invalid admin password');
             if (chatClient) chatClient.disconnect();
           }

@@ -12,93 +12,114 @@
 
 <!-- Settings Tab -->
 <div class="tab-content" id="tab-settings">
-    <div class="toggle-row">
-        <label>Hide IP</label>
-        <div class="toggle">
-            <input type="checkbox" id="hideIp">
-            <span class="toggle-slider"></span>
-        </div>
-    </div>
-
+    <!-- Privacy -->
     <div class="setting-group">
-        <label>Max Messages</label>
-        <div class="setting-row">
-            <input type="range" id="maxMsgSlider" min="2" max="10" value="5">
-            <span class="setting-value" id="maxMsgValue">5</span>
+        <label
+            style="color:var(--accent);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Privacy</label>
+        <div class="toggle-row">
+            <label>Hide IP</label>
+            <div class="toggle">
+                <input type="checkbox" id="hideIp">
+                <span class="toggle-slider"></span>
+            </div>
         </div>
     </div>
 
-    <div class="setting-group">
-        <label>Font Size</label>
-        <div class="setting-row">
-            <input type="range" id="fontSizeSlider" min="10" max="48" value="13">
-            <span class="setting-value" id="fontSizeValue">13</span>
+    <!-- Chats -->
+    <div class="setting-group" style="margin-top:24px">
+        <label
+            style="color:var(--accent);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Chats</label>
+        <div class="setting-group">
+            <label>Max Messages</label>
+            <div class="setting-row">
+                <input type="range" id="maxMsgSlider" min="2" max="25" value="5">
+                <span class="setting-value" id="maxMsgValue">5</span>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <label>Font Size</label>
+            <div class="setting-row">
+                <input type="range" id="fontSizeSlider" min="10" max="48" value="13">
+                <span class="setting-value" id="fontSizeValue">13</span>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <label>Custom Emoji Shortcut</label>
+            <div class="setting-row">
+                <div class="emoji-preview" id="customEmojiCurrent" aria-label="Current custom emoji">⭐</div>
+                <input type="text" id="customEmojiInput" placeholder="Type emoji (blank = ⭐)" maxlength="8"
+                    autocomplete="off">
+                <button class="btn" id="customEmojiSetBtn" type="button">Set</button>
+            </div>
         </div>
     </div>
 
-    <div class="toggle-row">
-        <label>Show Join Code</label>
-        <div class="toggle">
-            <input type="checkbox" id="showJoinCode">
-            <span class="toggle-slider"></span>
+    <!-- Joining Info -->
+    <div class="setting-group" style="margin-top:24px">
+        <label
+            style="color:var(--accent);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Joining
+            Info</label>
+        <div class="toggle-row">
+            <label>Show QR Code</label>
+            <div class="toggle">
+                <input type="checkbox" id="showMobileLink">
+                <span class="toggle-slider"></span>
+            </div>
+        </div>
+
+        <div class="toggle-row">
+            <label>Show Join Code</label>
+            <div class="toggle">
+                <input type="checkbox" id="showJoinCode">
+                <span class="toggle-slider"></span>
+            </div>
         </div>
     </div>
 
-    <div class="toggle-row">
-        <label>Show QR Code on Overlay</label>
-        <div class="toggle">
-            <input type="checkbox" id="showMobileLink">
-            <span class="toggle-slider"></span>
+    <!-- Moderation -->
+    <div class="setting-group" style="margin-top:24px">
+        <label
+            style="color:var(--accent);font-size:12px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Moderation</label>
+        <div class="toggle-row">
+            <label>Slow Mode</label>
+            <div class="toggle">
+                <input type="checkbox" id="slowModeEnabled">
+                <span class="toggle-slider"></span>
+            </div>
         </div>
-    </div>
 
-    <div class="toggle-row">
-        <label>Disable Chat History for Others</label>
-        <div class="toggle">
-            <input type="checkbox" id="disableChatHistory" checked>
-            <span class="toggle-slider"></span>
+        <div class="setting-group" id="slowModeSecondsGroup" style="margin-top: 12px; display: none;">
+            <label>Slow Mode Delay (seconds)</label>
+            <div class="setting-row">
+                <input type="range" id="slowModeSlider" min="1" max="30" value="3">
+                <span class="setting-value" id="slowModeValue">3</span>
+            </div>
         </div>
-    </div>
 
-    <div class="toggle-row">
-        <label>Enable Feedback Form</label>
-        <div class="toggle">
-            <input type="checkbox" id="enableFeedbackForm">
-            <span class="toggle-slider"></span>
+        <div class="toggle-row">
+            <label>Emoji Direct to Send</label>
+            <div class="toggle">
+                <input type="checkbox" id="emojiDirectSend" checked>
+                <span class="toggle-slider"></span>
+            </div>
         </div>
-    </div>
 
-    <div class="toggle-row">
-        <label>Emoji Direct to Send</label>
-        <div class="toggle">
-            <input type="checkbox" id="emojiDirectSend" checked>
-            <span class="toggle-slider"></span>
+        <div class="toggle-row">
+            <label>Disable Chat History for Others</label>
+            <div class="toggle">
+                <input type="checkbox" id="disableChatHistory" checked>
+                <span class="toggle-slider"></span>
+            </div>
         </div>
-    </div>
 
-    <div class="toggle-row">
-        <label>Slow Mode</label>
-        <div class="toggle">
-            <input type="checkbox" id="slowModeEnabled">
-            <span class="toggle-slider"></span>
-        </div>
-    </div>
-
-    <div class="setting-group" id="slowModeSecondsGroup" style="margin-top: 12px; display: none;">
-        <label>Slow Mode Delay (seconds)</label>
-        <div class="setting-row">
-            <input type="range" id="slowModeSlider" min="1" max="30" value="3">
-            <span class="setting-value" id="slowModeValue">3</span>
-        </div>
-    </div>
-
-    <div class="setting-group" style="margin-top: 18px;">
-        <label>Custom Emoji Shortcut</label>
-        <div class="setting-row">
-            <div class="emoji-preview" id="customEmojiCurrent" aria-label="Current custom emoji">⭐</div>
-            <input type="text" id="customEmojiInput" placeholder="Type emoji (blank = ⭐)" maxlength="8"
-                autocomplete="off">
-            <button class="btn" id="customEmojiSetBtn" type="button">Set</button>
+        <div class="toggle-row">
+            <label>Enable Feedback Form</label>
+            <div class="toggle">
+                <input type="checkbox" id="enableFeedbackForm">
+                <span class="toggle-slider"></span>
+            </div>
         </div>
     </div>
 
