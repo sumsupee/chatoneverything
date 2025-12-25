@@ -45,6 +45,10 @@
     "files": [
       "main.js",
       "index.html",
+      "preload.js",
+      "config.js",
+      "lib/**/*",
+      "js/**/*",
       "mobile/**/*",
       "assets/**/*",
       "css/**/*"
