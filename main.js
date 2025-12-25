@@ -110,9 +110,11 @@ webServer.setModules(ceeAgent, remoteControl);
 
 // --- Window Management ---
 // Linux transparency fixes
-app.disableHardwareAcceleration();
-app.commandLine.appendSwitch('enable-transparent-visuals');
-app.commandLine.appendSwitch('disable-gpu');
+if (process.platform === 'linux') {
+    app.disableHardwareAcceleration();
+    app.commandLine.appendSwitch('enable-transparent-visuals');
+    app.commandLine.appendSwitch('disable-gpu');
+}
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -357,12 +359,12 @@ function getCloudflaredPath() {
     const isWindows = process.platform === 'win32';
     const isMac = process.platform === 'darwin';
     const isLinux = process.platform === 'linux';
-    
+
     let binaryName = 'cloudflared';
     if (isWindows) {
         binaryName = 'cloudflared.exe';
     }
-    
+
     // Determine bin directory
     let binDir;
     if (app && app.isPackaged) {
@@ -372,13 +374,13 @@ function getCloudflaredPath() {
         // In development, check local bin directory
         binDir = path.join(__dirname, 'bin');
     }
-    
+
     // Try to find the binary
     const primaryPath = path.join(binDir, binaryName);
     if (fs.existsSync(primaryPath)) {
         return primaryPath;
     }
-    
+
     // For macOS, try architecture-specific binaries
     if (isMac) {
         const arch = process.arch === 'arm64' ? 'arm64' : 'amd64';
@@ -393,7 +395,7 @@ function getCloudflaredPath() {
             return otherArchPath;
         }
     }
-    
+
     // Fallback to system PATH
     log.warn('Bundled cloudflared not found, falling back to system PATH. Tunnel creation may fail if cloudflared is not installed.');
     return 'cloudflared';
