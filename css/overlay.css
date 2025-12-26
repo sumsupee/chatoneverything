@@ -73,6 +73,7 @@ body {
     cursor: grab;
     align-items: center;
     justify-content: space-between;
+    -webkit-app-region: drag;
 }
 
 #drag-bar:active {
@@ -102,6 +103,7 @@ body {
     border-radius: 6px;
     cursor: pointer;
     font: 500 12px 'Outfit', sans-serif;
+    -webkit-app-region: no-drag;
 }
 
 #closeBtn {

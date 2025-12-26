@@ -327,9 +327,12 @@ ipcMain.on('window-move', (_, { deltaX, deltaY }) => {
     }
 });
 
-ipcMain.on('window-resize', (_, { width, height }) => {
+ipcMain.on('window-resize', (_, { width, height, x, y }) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.setSize(Math.max(200, width), Math.max(150, height));
+        const bounds = { width: Math.max(200, width), height: Math.max(150, height) };
+        if (x !== undefined) bounds.x = x;
+        if (y !== undefined) bounds.y = y;
+        mainWindow.setBounds(bounds);
     }
 });
 

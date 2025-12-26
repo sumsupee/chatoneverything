@@ -267,16 +267,11 @@
     const app = $('app'), dragBar = $('drag-bar');
     const messages = $('messages'), mode = $('mode');
 
-    let dragging = false, resizing = false, resizeDir = '';
-    let lastX = 0, lastY = 0;
+    let resizing = false, resizeDir = '';
     let startX = 0, startY = 0, startW = 0, startH = 0, startPosX = 0, startPosY = 0;
 
-    // Drag
-    dragBar.onmousedown = e => {
-      if (e.target.id === 'closeBtn') return;
-      dragging = true;
-      lastX = e.screenX; lastY = e.screenY;
-    };
+    // Drag handled via CSS -webkit-app-region: drag
+
 
     // Resize from any edge
     document.querySelectorAll('.resize-edge').forEach(edge => {
@@ -292,10 +287,7 @@
     });
 
     document.onmousemove = e => {
-      if (dragging) {
-        ipcRenderer.send('window-move', { deltaX: e.screenX - lastX, deltaY: e.screenY - lastY });
-        lastX = e.screenX; lastY = e.screenY;
-      }
+
       if (resizing) {
         const dx = e.screenX - startX;
         const dy = e.screenY - startY;
@@ -311,7 +303,7 @@
       }
     };
 
-    document.onmouseup = () => { dragging = false; resizing = false; resizeDir = ''; };
+    document.onmouseup = () => { resizing = false; resizeDir = ''; };
 
     // Mode toggle
     ipcRenderer.on('mode-change', (m) => {
