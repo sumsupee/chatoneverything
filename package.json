@@ -23,10 +23,10 @@
     "name": "Sumedh",
     "email": "sumedh88@outlook.com"
   },
-  "homepage": "https://github.com/sumsupee/chat-on-everything",
+  "homepage": "https://github.com/sumsupee/chatoneverything",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sumsupee/chat-on-everything.git"
+    "url": "git+https://github.com/sumsupee/chatoneverything.git"
   },
   "license": "MIT",
   "dependencies": {
@@ -111,11 +111,11 @@
           ]
         }
       ],
-      "publish": {
-        "provider": "github",
-        "owner": "sumsupee",
-        "repo": "chat-on-everything"
-      }
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "sumsupee",
+      "repo": "chatoneverything"
     }
   }
 }
