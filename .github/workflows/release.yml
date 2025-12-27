@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on version tags like v1.0.0, v1.0.1, etc.
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: |
+          npm ci
+          npm run download-cloudflared
+
+      # Linux Build
+      - name: Build & Publish (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: npm run build:linux -- --publish always
+
+      # Windows Build
+      - name: Build & Publish (Windows)
+        if: matrix.os == 'windows-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: npm run build:win -- --publish always
+
+      # macOS Build
+      # Note: For real distribution, you will need Apple Developer Certificate and signing secrets.
+      # This will build an unsigned app which may require special user steps to open.
+      - name: Build & Publish (macOS)
+        if: matrix.os == 'macos-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: npm run build:mac -- --publish always

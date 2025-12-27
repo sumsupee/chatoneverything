@@ -3,6 +3,42 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const log = require('electron-log');
+const { autoUpdater } = require('electron-updater');
+
+// Configure auto-updater logging
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = 'info';
+
+// Auto-updater events
+autoUpdater.on('checking-for-update', () => {
+    log.info('Checking for update...');
+});
+
+autoUpdater.on('update-available', (info) => {
+    log.info('Update available.', info);
+    // Optional: Notify render process to show a UI prompt
+});
+
+autoUpdater.on('update-not-available', (info) => {
+    log.info('Update not available.', info);
+});
+
+autoUpdater.on('error', (err) => {
+    log.error('Error in auto-updater. ' + err);
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+    let log_message = "Download speed: " + progressObj.bytesPerSecond;
+    log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
+    log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';
+    log.info(log_message);
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+    log.info('Update downloaded', info);
+    // Silent install on quit, or ask user to restart
+    // autoUpdater.quitAndInstall();
+});
 
 // Global Error Handlers
 process.on('uncaughtException', (error) => {
@@ -464,6 +500,11 @@ app.whenReady().then(async () => {
     initChatLogging();
     createWindow();
     webServer.start();
+
+    // Check for updates (and notify if available)
+    if (app.isPackaged) {
+        autoUpdater.checkForUpdatesAndNotify();
+    }
 
     await createTunnels();
 
