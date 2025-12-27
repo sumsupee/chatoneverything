@@ -282,8 +282,10 @@
 
       chatClient = new LiveChatClient({
         onOpen: () => {
+          const params = new URLSearchParams(window.location.search);
+          const sessionCode = params.get('s');
           setStatus(false, 'Authenticating...');
-          chatClient.send({ type: 'admin-auth', password });
+          chatClient.send({ type: 'admin-auth', password, sessionCode });
         },
         onMessage: handleWebSocketMessage,
         onClose: () => {
@@ -358,7 +360,9 @@
             if (chatClient) chatClient.disconnect();
           }
         } else if (data.type === 'error' && data.error === 'session_not_validated') {
-          if (lastPassword) chatClient.send({ type: 'admin-auth', password: lastPassword });
+          const params = new URLSearchParams(window.location.search);
+          const sessionCode = params.get('s');
+          if (lastPassword) chatClient.send({ type: 'admin-auth', password: lastPassword, sessionCode });
         } else {
           // Delegate all other messages to dynamic logic
           if (window.handleAdminMessage) window.handleAdminMessage(data);
