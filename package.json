@@ -110,7 +110,7 @@
             "cloudflared-mac-*"
           ]
         }
-      ],
+      ]
     },
     "publish": {
       "provider": "github",
