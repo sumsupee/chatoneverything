@@ -9,6 +9,9 @@ dist/
 out/
 build/
 bin/
+!bin/dotool
+!bin/dotoolc
+!bin/dotoold
 
 # Archive
 arx/
