@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -344,11 +344,78 @@ ipcMain.on('settings-changed', (_, settings) => {
 
 ipcMain.on('enable-remote-control', () => {
     currentSettings.remoteEnabled = true;
-    if (process.platform === 'linux') remoteControl.detectDotool();
+
+    if (process.platform === 'linux') {
+        remoteControl.detectDotool();
+        const permStatus = remoteControl.checkPermission();
+
+        if (permStatus === 'need-setup') {
+            showDotoolPermissionDialog();
+        } else if (permStatus === 'need-relogin') {
+            // Show info dialog
+            dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'Log Out Required',
+                message: 'Please log out and log back in to complete setup.',
+                detail: `The remote control permissions have been configured, but they require a fresh login to take effect.\n\n` +
+                    `Please:\n` +
+                    `1. Close this app\n` +
+                    `2. Log out of your desktop session\n` +
+                    `3. Log back in\n` +
+                    `4. Start the app again`,
+                buttons: ['OK']
+            });
+        }
+    }
 
     webServer.broadcastToAdmins({ type: 'remote-enabled-status', enabled: true });
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('settings-update', { remoteEnabled: true });
 });
+
+// Show dialog for permission setup with auto-setup option
+function showDotoolPermissionDialog() {
+    dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: 'Remote Control Setup Required',
+        message: 'Remote control needs permission to simulate input.',
+        detail: 'Click "Auto Setup" to configure permissions automatically. This will prompt for your password to modify system rules. The app will restart after setup.',
+        buttons: ['Auto Setup', 'Cancel'],
+        defaultId: 0,
+        cancelId: 1
+    }).then(result => {
+        if (result.response === 0) {
+            // Auto Setup - install udev rule
+            const success = remoteControl.installUdevRule();
+            if (success) {
+                dialog.showMessageBox(mainWindow, {
+                    type: 'info',
+                    title: 'Setup Complete',
+                    message: 'Permissions configured successfully!',
+                    detail: 'The app will now restart to apply the changes.\n\nIf remote control still doesn\'t work after restart, you may need to log out and log back in.',
+                    buttons: ['OK']
+                }).then(() => {
+                    setTimeout(() => {
+                        app.relaunch();
+                        app.exit(0);
+                    }, 500);
+                });
+            } else {
+                dialog.showMessageBox(mainWindow, {
+                    type: 'error',
+                    title: 'Auto Setup Failed',
+                    message: 'Could not configure permissions automatically.',
+                    detail: 'Please run in terminal:\nsudo usermod -aG input $USER\n\nThen log out and log back in.',
+                    buttons: ['OK']
+                });
+            }
+        } else {
+            // User cancelled, disable remote control
+            currentSettings.remoteEnabled = false;
+            webServer.broadcastToAdmins({ type: 'remote-enabled-status', enabled: false });
+            if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('settings-update', { remoteEnabled: false });
+        }
+    });
+}
 
 ipcMain.on('disable-remote-control', () => {
     currentSettings.remoteEnabled = false;
