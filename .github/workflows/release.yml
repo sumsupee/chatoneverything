@@ -25,6 +25,8 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           npm ci
           npm run download-cloudflared

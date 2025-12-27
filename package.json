@@ -107,7 +107,7 @@
           "from": "bin/",
           "to": "bin/",
           "filter": [
-            "cloudflared"
+            "cloudflared-mac-*"
           ]
         }
       ],

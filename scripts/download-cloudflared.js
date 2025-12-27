@@ -29,7 +29,18 @@ if (!fs.existsSync(BIN_DIR)) {
 function httpsGet(url) {
     return new Promise((resolve, reject) => {
         const protocol = url.startsWith('https') ? https : http;
-        protocol.get(url, (res) => {
+
+        const options = {
+            headers: {
+                'User-Agent': 'node.js', // Github API requires User-Agent
+            }
+        };
+
+        if (process.env.GH_TOKEN) {
+            options.headers['Authorization'] = `token ${process.env.GH_TOKEN}`;
+        }
+
+        protocol.get(url, options, (res) => {
             if (res.statusCode === 302 || res.statusCode === 301) {
                 // Follow redirect
                 return httpsGet(res.headers.location).then(resolve).catch(reject);
@@ -59,26 +70,26 @@ async function downloadBinary(platform, arch, extension, outputName, isArchive =
     const version = VERSION === 'latest' ? await getLatestVersion() : VERSION;
     const url = `https://github.com/${GITHUB_REPO}/releases/download/${version}/cloudflared-${platform}-${arch}${extension}`;
     const outputPath = path.join(BIN_DIR, outputName);
-    
+
     console.log(`Downloading ${platform}-${arch}...`);
     console.log(`  URL: ${url}`);
     console.log(`  Output: ${outputPath}`);
-    
+
     try {
         const data = await httpsGet(url);
-        
+
         if (isArchive) {
             // For macOS .tgz files, extract the archive
             const tempArchive = path.join(BIN_DIR, `temp-${platform}-${arch}${extension}`);
             fs.writeFileSync(tempArchive, data);
-            
+
             // Extract using tar command (available on macOS/Linux)
             const tempExtractDir = path.join(BIN_DIR, `temp-extract-${platform}-${arch}`);
             fs.mkdirSync(tempExtractDir, { recursive: true });
-            
+
             try {
                 execSync(`tar -xzf "${tempArchive}" -C "${tempExtractDir}"`, { stdio: 'ignore' });
-                
+
                 // The extracted file is named "cloudflared"
                 const extractedBinary = path.join(tempExtractDir, 'cloudflared');
                 if (fs.existsSync(extractedBinary)) {
@@ -87,7 +98,7 @@ async function downloadBinary(platform, arch, extension, outputName, isArchive =
                 } else {
                     throw new Error('Binary not found in archive');
                 }
-                
+
                 // Cleanup
                 fs.unlinkSync(tempArchive);
                 fs.rmSync(tempExtractDir, { recursive: true, force: true });
@@ -100,13 +111,13 @@ async function downloadBinary(platform, arch, extension, outputName, isArchive =
         } else {
             // Direct binary download
             fs.writeFileSync(outputPath, data);
-            
+
             // Make executable on Unix-like systems
             if (process.platform !== 'win32') {
                 fs.chmodSync(outputPath, 0o755);
             }
         }
-        
+
         console.log(`  ✓ Successfully downloaded ${outputName}`);
         return true;
     } catch (error) {
@@ -119,20 +130,20 @@ async function main() {
     console.log('Downloading cloudflared binaries...');
     console.log(`Version: ${VERSION === 'latest' ? 'latest (will fetch)' : VERSION}`);
     console.log('');
-    
+
     const downloads = [
         ['linux', 'amd64', '', 'cloudflared', false],
         ['windows', 'amd64', '.exe', 'cloudflared.exe', false],
         ['darwin', 'amd64', '.tgz', 'cloudflared-mac-amd64', true],  // macOS uses .tgz archives
         ['darwin', 'arm64', '.tgz', 'cloudflared-mac-arm64', true],  // macOS uses .tgz archives
     ];
-    
+
     const results = await Promise.all(
-        downloads.map(([platform, arch, ext, output, isArchive]) => 
+        downloads.map(([platform, arch, ext, output, isArchive]) =>
             downloadBinary(platform, arch, ext, output, isArchive)
         )
     );
-    
+
     const successCount = results.filter(r => r).length;
     console.log('');
     console.log(`Download complete! (${successCount}/${downloads.length} successful)`);
