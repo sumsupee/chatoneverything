@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*' # Trigger on version tags like v1.0.0, v1.0.1, etc.
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: ${{ matrix.os }}
@@ -26,7 +29,7 @@ jobs:
 
       - name: Install Dependencies
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Use GITHUB_TOKEN for download script too
         run: |
           npm ci
           npm run download-cloudflared
@@ -35,14 +38,14 @@ jobs:
       - name: Build & Publish (Linux)
         if: matrix.os == 'ubuntu-latest'
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build:linux -- --publish always
 
       # Windows Build
       - name: Build & Publish (Windows)
         if: matrix.os == 'windows-latest'
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build:win -- --publish always
 
       # macOS Build
@@ -51,5 +54,5 @@ jobs:
       - name: Build & Publish (macOS)
         if: matrix.os == 'macos-latest'
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build:mac -- --publish always
