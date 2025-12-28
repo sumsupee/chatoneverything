@@ -95,7 +95,6 @@
       ]
     },
     "mac": {
-      "identity": null,
       "target": [
         "dmg",
         "zip"
