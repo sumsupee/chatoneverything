@@ -14,25 +14,44 @@
 
 ## Tech Stack
 
--   **Electron**: For the cross-platform desktop application.
--   **Node.js**: The runtime environment.
--   **WebSockets (`ws`)**: For real-time communication between the desktop app and mobile companion.
--   **Nut.js**: For desktop automation and remote control capabilities.
--   **Cloudflare Tunnel**: For secure remote access without port forwarding.
--   **Google GenAI / OpenAI**: Powering the `@Cee` AI agent.
+![Electron](https://img.shields.io/badge/Electron-191970?style=for-the-badge&logo=Electron&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)
+![WebSockets](https://img.shields.io/badge/WebSockets-black?style=for-the-badge&logo=socket.io&logoColor=white)
+![Nut.js](https://img.shields.io/badge/Nut.js-999999?style=for-the-badge&logo=npm&logoColor=white)
+![Cloudflare](https://img.shields.io/badge/Cloudflare-F38020?style=for-the-badge&logo=Cloudflare&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)
+![Google Gemini](https://img.shields.io/badge/Google%20Gemini-8E75B2?style=for-the-badge&logo=google%20gemini&logoColor=white)
 
 ## Gallery
 
 ### Desktop Interface
-![Desktop Overlay Example](assets/readme/1.png)
-![Overlay in Action](assets/readme/2.png)
-![Settings Menu](assets/readme/3.png)
-![Chat Interface](assets/readme/4.png)
+
+<p align="center">
+  <img src="assets/readme/1.png" width="48%" />
+  <img src="assets/readme/2.png" width="48%" />
+</p>
+<p align="center">
+  <em>Left: The unobtrusive overlay bar on the desktop. Right: The overlay expanded with an active chat session.</em>
+</p>
+
+<p align="center">
+  <img src="assets/readme/3.png" width="48%" />
+  <img src="assets/readme/4.png" width="48%" />
+</p>
+<p align="center">
+  <em>Left: The comprehensive settings menu. Right: The chat interface showing interactions.</em>
+</p>
 
 ### Mobile Companion
-![Mobile Chat](assets/readme/5.jpeg)
-![Mobile Remote Control](assets/readme/6.jpeg)
-![Mobile Settings](assets/readme/7.jpeg)
+
+<p align="center">
+  <img src="assets/readme/5.jpeg" width="200" />
+  <img src="assets/readme/6.jpeg" width="200" />
+  <img src="assets/readme/7.jpeg" width="200" />
+</p>
+<p align="center">
+  <em>The mobile companion app allows for chatting (Left), remote control of mouse/keyboard (Center), and adjusting settings (Right).</em>
+</p>
 
 ## Installation & Build
 
